@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId         String   @id @default(uuid()) // Unique identifier
+  name           String
+  email          String   @unique
+  passwordHash   String
+  role           Role     @default(CUSTOMER) // Enum for user roles
+  profilePicture String? // Optional profile image
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  talent   Talent?
+  customer Customer?
+  admin    Admin?
+  reviews  Review[]
+  bookings EventBooking[]
+}
+
+model Talent {
+  talentId            String     @id @default(uuid()) // Uses User ID as primary key
+  user                User       @relation(fields: [talentId], references: [userId])
+  bio                 String
+  services            String[] // List of services (e.g., ["Musician", "Magician"])
+  hourlyRate          Float
+  location            String
+  availability        Json // Store as JSON array [{ date: "2024-04-01", timeSlots: ["10 AM", "2 PM"] }]
+  reviews             Review[]
+  rating              Float
+  socialLinks         Json? // Store as JSON array [{ platform: "Instagram", url: "https://..." }]
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  favoriteByCustomers Customer[] @relation("FavoriteTalents")
+}
+
+model Customer {
+  customerId      String         @id @default(uuid())
+  user            User           @relation(fields: [customerId], references: [userId])
+  phoneNumber     String?
+  eventHistory    EventBooking[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  favoriteTalents Talent[]       @relation("FavoriteTalents")
+}
+
+model Admin {
+  adminId     String   @id @default(uuid())
+  user        User     @relation(fields: [adminId], references: [userId])
+  permissions Json // Store as JSON { manageUsers: true, manageBookings: false }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Review {
+  reviewId       String   @id @default(uuid())
+  userRevieweId  String
+  talentReviewId String
+  rating         Float
+  comment        String
+  createdAt      DateTime @default(now())
+  replies        Reply[]
+  // Relations
+  user           User     @relation(fields: [userRevieweId], references: [userId])
+  talent         Talent   @relation(fields: [talentReviewId], references: [talentId])
+}
+
+model Reply {
+  replyId       String   @id @default(uuid())
+  comment       String
+  createdAt     DateTime @default(now())
+  // Relations
+  review        Review   @relation(fields: [reviewReplyId], references: [reviewId])
+  reviewReplyId String
+}
+
+model EventBooking {
+  bookingId         String   @id @default(uuid())
+  userBookingId     String
+  customerBookingId String
+  date              DateTime
+  status            String   @default("pending") // pending, confirmed, cancelled
+  createdAt         DateTime @default(now())
+  // Relations
+  user              User     @relation(fields: [userBookingId], references: [userId])
+  customer          Customer @relation(fields: [customerBookingId], references: [customerId])
+}
+
+enum Role {
+  TALENT
+  CUSTOMER
+  ADMIN
+}
