@@ -1,15 +1,20 @@
-import { DefaultSession } from 'next-auth';
+import type { User as BaseUser } from '../../../../types';
 
 declare module 'next-auth' {
   interface Session {
+    accessToken: string;
     user: {
-      id: string;
+      userId: string;
       role: 'TALENT' | 'CUSTOMER' | 'ADMIN';
-    } & DefaultSession['user'];
+      name: string;
+      email: string;
+    } & Omit<BaseUser, 'passwordHash'>;
   }
 
-  interface User {
-    id: string;
+  interface User extends Omit<BaseUser, 'passwordHash'> {
+    userId: string;
     role: 'TALENT' | 'CUSTOMER' | 'ADMIN';
+    name: string;
+    email: string;
   }
 }

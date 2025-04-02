@@ -2,12 +2,12 @@ import NextAuth, { User as NextAuthUser } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { Role, User } from '../../../../../../types';
 
 const prisma = new PrismaClient();
 
-export default NextAuth({
+const handler = NextAuth({
   providers: [
     // ✅ Google OAuth Provider
     GoogleProvider({
@@ -28,7 +28,7 @@ export default NextAuth({
         }
 
         // Check if user exists in database
-        const user: User = await prisma.user.findUnique({
+        const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
 
@@ -45,12 +45,9 @@ export default NextAuth({
           throw new Error('Incorrect password');
         }
 
-        const nextAuthUser: NextAuthUser = {
+        const nextAuthUser = {
           id: user.userId, // Convert ID to string if necessary
-          name: user.name,
-          email: user.email,
-          image: user.profilePicture,
-          role: user.role,
+          ...user,
         };
 
         return nextAuthUser; // Login successful, return user data
@@ -63,18 +60,22 @@ export default NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
+        token.user = user as NextAuthUser;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string; // Ensure `id` is included
-        session.user.role = token.role as Role; // Include `role`
+        session.user = token.user as NextAuthUser;
+        if (!process.env.NEXTAUTH_SECRET) {
+          throw new Error('NEXTAUTH_SECRET is not defined');
+        }
+        session.accessToken = jwt.sign(token, process.env.NEXTAUTH_SECRET);
       }
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
 });
+
+export { handler as GET, handler as POST };

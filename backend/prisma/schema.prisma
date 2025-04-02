@@ -1,68 +1,62 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
+  output   = "../../frontend/node_modules/.prisma/client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  userId         String   @id @default(uuid()) // Unique identifier
+  userId         String         @id @default(uuid())
   name           String
-  email          String   @unique
+  email          String         @unique
   passwordHash   String
-  role           Role     @default(CUSTOMER) // Enum for user roles
-  profilePicture String? // Optional profile image
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
-  talent   Talent?
-  customer Customer?
-  admin    Admin?
-  reviews  Review[]
-  bookings EventBooking[]
+  role           Role           @default(CUSTOMER)
+  profilePicture String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  admin          Admin?
+  customer       Customer?
+  bookings       EventBooking[]
+  reviews        Review[]
+  talent         Talent?
 }
 
 model Talent {
-  talentId            String     @id @default(uuid()) // Uses User ID as primary key
-  user                User       @relation(fields: [talentId], references: [userId])
+  talentId            String     @id @default(uuid())
   bio                 String
-  services            String[] // List of services (e.g., ["Musician", "Magician"])
+  services            String[]
   hourlyRate          Float
   location            String
-  availability        Json // Store as JSON array [{ date: "2024-04-01", timeSlots: ["10 AM", "2 PM"] }]
-  reviews             Review[]
+  availability        Json
   rating              Float
-  socialLinks         Json? // Store as JSON array [{ platform: "Instagram", url: "https://..." }]
+  socialLinks         Json?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
+  reviews             Review[]
+  user                User       @relation(fields: [talentId], references: [userId])
   favoriteByCustomers Customer[] @relation("FavoriteTalents")
 }
 
 model Customer {
   customerId      String         @id @default(uuid())
-  user            User           @relation(fields: [customerId], references: [userId])
   phoneNumber     String?
-  eventHistory    EventBooking[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [customerId], references: [userId])
+  eventHistory    EventBooking[]
   favoriteTalents Talent[]       @relation("FavoriteTalents")
 }
 
 model Admin {
   adminId     String   @id @default(uuid())
-  user        User     @relation(fields: [adminId], references: [userId])
-  permissions Json // Store as JSON { manageUsers: true, manageBookings: false }
+  permissions Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [adminId], references: [userId])
 }
 
 model Review {
@@ -73,18 +67,16 @@ model Review {
   comment        String
   createdAt      DateTime @default(now())
   replies        Reply[]
-  // Relations
-  user           User     @relation(fields: [userRevieweId], references: [userId])
   talent         Talent   @relation(fields: [talentReviewId], references: [talentId])
+  user           User     @relation(fields: [userRevieweId], references: [userId])
 }
 
 model Reply {
   replyId       String   @id @default(uuid())
   comment       String
   createdAt     DateTime @default(now())
-  // Relations
-  review        Review   @relation(fields: [reviewReplyId], references: [reviewId])
   reviewReplyId String
+  review        Review   @relation(fields: [reviewReplyId], references: [reviewId])
 }
 
 model EventBooking {
@@ -92,11 +84,10 @@ model EventBooking {
   userBookingId     String
   customerBookingId String
   date              DateTime
-  status            String   @default("pending") // pending, confirmed, cancelled
+  status            String   @default("pending")
   createdAt         DateTime @default(now())
-  // Relations
-  user              User     @relation(fields: [userBookingId], references: [userId])
   customer          Customer @relation(fields: [customerBookingId], references: [customerId])
+  user              User     @relation(fields: [userBookingId], references: [userId])
 }
 
 enum Role {

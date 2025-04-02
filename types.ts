@@ -6,14 +6,14 @@ export type User = {
   email: string;
   passwordHash: string;
   role: Role;
-  profilePicture?: string;
+  profilePicture: string | null;
   createdAt: Date;
   updatedAt: Date;
   talent?: Talent;
   customer?: Customer;
   admin?: Admin;
-  reviews: Review[];
-  bookings: EventBooking[];
+  reviews?: Review[];
+  bookings?: EventBooking[];
 };
 
 export type Talent = {
