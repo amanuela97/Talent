@@ -13,6 +13,13 @@ const handler = NextAuth({
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      authorization: {
+        params: {
+          prompt: 'consent',
+          access_type: 'offline',
+          response_type: 'code',
+        },
+      },
     }),
 
     // ✅ Email & Password Authentication
@@ -58,6 +65,74 @@ const handler = NextAuth({
     strategy: 'jwt',
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === 'google') {
+        if (!user.email) return false; // Safety check
+
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
+          include: { accounts: true },
+        });
+
+        if (existingUser) {
+          // ✅ Check if Google account is already linked
+          const googleAccount = existingUser.accounts.find(
+            (acc) => acc.provider === 'google'
+          );
+
+          if (!googleAccount) {
+            // ✅ Link Google account to existing user
+            await prisma.account.create({
+              data: {
+                userId: existingUser.userId, // ✅ Fix: Use `userId` instead of `id`
+                provider: 'google',
+                providerAccountId: account.providerAccountId || account.id, // ✅ Fix: Ensure ID is not undefined
+                accessToken: account.access_token,
+                expiresAt: account.expires_at,
+              },
+            });
+          }
+
+          if (!existingUser.profilePicture) {
+            await prisma.user.update({
+              where: { userId: existingUser.userId },
+              data: { profilePicture: user.image },
+            });
+          }
+
+          user.id = existingUser.userId; // Store user ID
+          user.role = existingUser.role; // Store role
+          user.profilePicture = user.profilePicture ?? user.image; // Store profile picture
+        } else {
+          const isAdmin = process.env.ADMIN_LIST
+            ? process.env.ADMIN_LIST.split(',').includes(
+                user.email || 'no-email'
+              )
+            : false;
+          // ✅ Create new user if not exists
+          const newUser = await prisma.user.create({
+            data: {
+              email: user.email!,
+              name: user.name,
+              profilePicture: user.image, // ✅ Fix: Use `profilePicture` instead of `image`
+              role: isAdmin ? 'ADMIN' : 'CUSTOMER',
+              accounts: {
+                create: {
+                  provider: 'google',
+                  providerAccountId: account.providerAccountId || account.id,
+                  accessToken: account.access_token,
+                  expiresAt: account.expires_at,
+                },
+              },
+            },
+          });
+          user.id = newUser.userId;
+          user.role = newUser.role;
+          user.profilePicture = newUser.profilePicture;
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.user = user as NextAuthUser;
