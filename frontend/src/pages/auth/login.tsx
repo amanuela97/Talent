@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -67,6 +68,7 @@ export default function Login() {
           Don&apos;t have an account? Register
         </Link>
       </div>
+      <Button>Hello</Button>
     </div>
   );
 }
