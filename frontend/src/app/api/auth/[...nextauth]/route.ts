@@ -1,11 +1,26 @@
 import NextAuth, { User as NextAuthUser } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import globalForPrisma from '@/app/utils/prisma';
 
-const prisma = new PrismaClient();
+const prisma = globalForPrisma.prisma;
+
+function validateEnv() {
+  const required = [
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'NEXTAUTH_SECRET',
+  ];
+  for (const var_name of required) {
+    if (!process.env[var_name]) {
+      throw new Error(`Environment variable ${var_name} is missing`);
+    }
+  }
+}
+validateEnv();
 
 const handler = NextAuth({
   providers: [
@@ -86,7 +101,7 @@ const handler = NextAuth({
               data: {
                 userId: existingUser.userId, // ✅ Fix: Use `userId` instead of `id`
                 provider: 'google',
-                providerAccountId: account.providerAccountId || account.id, // ✅ Fix: Ensure ID is not undefined
+                providerAccountId: account.providerAccountId, // ✅ Fix: Ensure ID is not undefined
                 accessToken: account.access_token,
                 expiresAt: account.expires_at,
               },
@@ -96,13 +111,13 @@ const handler = NextAuth({
           if (!existingUser.profilePicture) {
             await prisma.user.update({
               where: { userId: existingUser.userId },
-              data: { profilePicture: user.image },
+              data: { profilePicture: user.image || null }, // ✅ Fix: Use `profilePicture` instead of `image`
             });
           }
 
           user.id = existingUser.userId; // Store user ID
           user.role = existingUser.role; // Store role
-          user.profilePicture = user.profilePicture ?? user.image; // Store profile picture
+          user.profilePicture = user.image || null;
         } else {
           const isAdmin = process.env.ADMIN_LIST
             ? process.env.ADMIN_LIST.split(',').includes(
@@ -112,14 +127,18 @@ const handler = NextAuth({
           // ✅ Create new user if not exists
           const newUser = await prisma.user.create({
             data: {
-              email: user.email!,
+              email: user.email,
               name: user.name,
-              profilePicture: user.image, // ✅ Fix: Use `profilePicture` instead of `image`
+              profilePicture: user.image || null, // ✅ Fix: Use `profilePicture` instead of `image`
               role: isAdmin ? 'ADMIN' : 'CUSTOMER',
+              passwordHash: await bcrypt.hash(
+                crypto.randomBytes(32).toString('hex'),
+                10
+              ), // Secure random hash
               accounts: {
                 create: {
                   provider: 'google',
-                  providerAccountId: account.providerAccountId || account.id,
+                  providerAccountId: account.providerAccountId,
                   accessToken: account.access_token,
                   expiresAt: account.expires_at,
                 },

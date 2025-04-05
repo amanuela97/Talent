@@ -16,6 +16,7 @@ model User {
   passwordHash   String
   role           Role           @default(CUSTOMER)
   profilePicture String?
+  authProvider   String         @default("credentials") // "google", "credentials", etc.
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   admin          Admin?
