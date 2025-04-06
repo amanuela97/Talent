@@ -16,7 +16,7 @@ model User {
   passwordHash   String
   role           Role           @default(CUSTOMER)
   profilePicture String?
-  authProvider   String         @default("credentials") // "google", "credentials", etc.
+  authProvider   AuthProvider   @default(CREDENTIALS) 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   admin          Admin?
@@ -95,4 +95,9 @@ enum Role {
   TALENT
   CUSTOMER
   ADMIN
+}
+
+enum AuthProvider {
+  GOOGLE
+  CREDENTIALS
 }

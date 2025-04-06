@@ -1,6 +1,7 @@
+'use client';
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function Login() {
@@ -63,7 +64,7 @@ export default function Login() {
         </button>
       </div>
       <div className="mt-4">
-        <Link href="/auth/register" className="text-blue-500 hover:underline">
+        <Link href="/register" className="text-blue-500 hover:underline">
           Don&apos;t have an account? Register
         </Link>
       </div>
