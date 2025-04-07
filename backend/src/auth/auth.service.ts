@@ -6,7 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { TokenResponse, UserPayload } from 'src/backendTypes';
 import { GoogleLoginDto } from './dto/google-login.dto';
-import { PrismaService } from 'src/prsima.service';
+import { PrismaService } from 'src/prisma.service';
 import { Account } from '@prisma/client';
 
 @Injectable()
@@ -20,7 +20,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto);
@@ -58,8 +58,8 @@ export class AuthService {
         // User exists - now we need to check if they already have a Google account linked
         const hasGoogleAccount = (
           existingUser.accounts as
-            | { provider: string; providerAccountId: string }[]
-            | undefined
+          | { provider: string; providerAccountId: string }[]
+          | undefined
         )?.some(
           (acc) =>
             acc.provider === 'google' &&

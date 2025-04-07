@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prsima.service';
+import { PrismaService } from '../prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { hash } from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -16,7 +16,7 @@ import * as crypto from 'crypto';
 export class UserService {
   private readonly SALT_ROUNDS = 10;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Create a new user
