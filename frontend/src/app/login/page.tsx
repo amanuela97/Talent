@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ClientOnly from '@/components/custom/ClientOnly';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,46 +29,48 @@ export default function Login() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-2xl font-bold mb-4">Login</h1>
+    <ClientOnly>
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <h1 className="text-2xl font-bold mb-4">Login</h1>
 
-      {error && <p className="text-red-500">{error}</p>}
+        {error && <p className="text-red-500">{error}</p>}
 
-      <form onSubmit={handleEmailLogin} className="flex flex-col space-y-4">
-        <input
-          type="email"
-          placeholder="Email"
-          className="border p-2 rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="border p-2 rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" className="bg-blue-500 text-white p-2 rounded">
-          Sign in with Email
-        </button>
-      </form>
+        <form onSubmit={handleEmailLogin} className="flex flex-col space-y-4">
+          <input
+            type="email"
+            placeholder="Email"
+            className="border p-2 rounded"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            className="border p-2 rounded"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button type="submit" className="bg-blue-500 text-white p-2 rounded">
+            Sign in with Email
+          </button>
+        </form>
 
-      <div className="mt-4">
-        <button
-          onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
-          className="bg-red-500 text-white p-2 rounded"
-        >
-          Sign in with Google
-        </button>
+        <div className="mt-4">
+          <button
+            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            className="bg-red-500 text-white p-2 rounded"
+          >
+            Sign in with Google
+          </button>
+        </div>
+        <div className="mt-4">
+          <Link href="/register" className="text-blue-500 hover:underline">
+            Don&apos;t have an account? Register
+          </Link>
+        </div>
       </div>
-      <div className="mt-4">
-        <Link href="/register" className="text-blue-500 hover:underline">
-          Don&apos;t have an account? Register
-        </Link>
-      </div>
-    </div>
+    </ClientOnly>
   );
 }

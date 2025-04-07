@@ -11,7 +11,7 @@ import { Account } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
-  private readonly ACCESS_TOKEN_EXPIRES = '60s';
+  private readonly ACCESS_TOKEN_EXPIRES = '4h';
   private readonly REFRESH_TOKEN_EXPIRES = '7d';
   private readonly EXPIRE_TIME = 60 * 1000; // 60 seconds
 
