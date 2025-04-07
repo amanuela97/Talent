@@ -20,6 +20,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/backendTypes';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -48,6 +49,11 @@ export class AuthController {
   })
   async login(@Body(new ValidationPipe()) dto: LoginDto) {
     return await this.authService.login(dto);
+  }
+
+  @Post('google-login')
+  async googleLogin(@Body() dto: GoogleLoginDto) {
+    return await this.authService.googleLogin(dto);
   }
 
   @UseGuards(RefreshJwtGuard)

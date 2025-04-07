@@ -1,12 +1,9 @@
-import NextAuth, { User as NextAuthUser } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
-import crypto from 'crypto';
-import globalForPrisma from '@/app/utils/prisma';
-
-const prisma = globalForPrisma.prisma;
+import { JWT } from 'next-auth/jwt';
+import { BACKEND_URL } from '@/app/utils/constants';
+import NextAuth from 'next-auth/next';
+import { AuthOptions } from 'next-auth';
 
 function validateEnv() {
   const required = [
@@ -20,9 +17,32 @@ function validateEnv() {
     }
   }
 }
+// Validate environment variables
+// This function checks if the required environment variables are set
 validateEnv();
 
-const handler = NextAuth({
+async function refreshToken(token: JWT): Promise<JWT> {
+  const res = await fetch(BACKEND_URL + '/auth/refresh', {
+    method: 'POST',
+    headers: {
+      authorization: `Refresh ${token.backendTokens.refreshToken}`,
+    },
+  });
+  console.log('refreshed');
+
+  if (!res.ok) {
+    console.log(res.statusText);
+    return token;
+  }
+  const response = await res.json();
+
+  return {
+    ...token,
+    backendTokens: response,
+  };
+}
+
+export const authOptions: AuthOptions = {
   providers: [
     // ✅ Google OAuth Provider
     GoogleProvider({
@@ -36,140 +56,85 @@ const handler = NextAuth({
         },
       },
     }),
-
     // ✅ Email & Password Authentication
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: 'Email', type: 'email', placeholder: 'your@email.com' },
+        username: {
+          label: 'Username',
+          type: 'text',
+          placeholder: 'jsmith',
+        },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials): Promise<NextAuthUser | null> {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Missing email or password');
-        }
 
-        // Check if user exists in database
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+      async authorize(credentials) {
+        if (!credentials?.username || !credentials?.password) {
+          throw new Error('Missing username or password');
+        }
+        const { username, password } = credentials;
+        const res = await fetch(BACKEND_URL + '/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            username,
+            password,
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
-
-        if (!user) {
-          throw new Error('User not found');
+        if (!res.ok) {
+          const error = await res.json(); // Assuming your API sends a JSON error message
+          throw new Error(error?.message || 'Invalid email ');
         }
-
-        // Verify password
-        const isValidPassword = await bcrypt.compare(
-          credentials.password,
-          user.passwordHash
-        );
-        if (!isValidPassword) {
-          throw new Error('Incorrect password');
-        }
-
-        const nextAuthUser = {
-          id: user.userId, // Convert ID to string if necessary
-          ...user,
-        };
-
-        return nextAuthUser; // Login successful, return user data
+        const user = await res.json();
+        return user;
       },
     }),
   ],
-  session: {
-    strategy: 'jwt',
-  },
+
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === 'google') {
-        if (!user.email) return false; // Safety check
-
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email },
-          include: { accounts: true },
+        const res = await fetch(`${BACKEND_URL}/auth/google-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            providerAccountId: account.providerAccountId,
+            accessToken: account.access_token,
+            expiresAt: account.expires_at,
+          }),
         });
 
-        if (existingUser) {
-          // ✅ Check if Google account is already linked
-          const googleAccount = existingUser.accounts.find(
-            (acc) => acc.provider === 'google'
-          );
+        if (!res.ok) return false;
 
-          if (!googleAccount) {
-            // ✅ Link Google account to existing user
-            await prisma.account.create({
-              data: {
-                userId: existingUser.userId, // ✅ Fix: Use `userId` instead of `id`
-                provider: 'google',
-                providerAccountId: account.providerAccountId, // ✅ Fix: Ensure ID is not undefined
-                accessToken: account.access_token,
-                expiresAt: account.expires_at,
-              },
-            });
-          }
-
-          if (!existingUser.profilePicture) {
-            await prisma.user.update({
-              where: { userId: existingUser.userId },
-              data: { profilePicture: user.image || null }, // ✅ Fix: Use `profilePicture` instead of `image`
-            });
-          }
-
-          user.id = existingUser.userId; // Store user ID
-          user.role = existingUser.role; // Store role
-          user.profilePicture = user.image || null;
-        } else {
-          const isAdmin = process.env.ADMIN_LIST
-            ? process.env.ADMIN_LIST.split(',').includes(
-                user.email || 'no-email'
-              )
-            : false;
-          // ✅ Create new user if not exists
-          const newUser = await prisma.user.create({
-            data: {
-              email: user.email,
-              name: user.name,
-              profilePicture: user.image || null, // ✅ Fix: Use `profilePicture` instead of `image`
-              role: isAdmin ? 'ADMIN' : 'CUSTOMER',
-              passwordHash: await bcrypt.hash(
-                crypto.randomBytes(32).toString('hex'),
-                10
-              ), // Secure random hash
-              accounts: {
-                create: {
-                  provider: 'google',
-                  providerAccountId: account.providerAccountId,
-                  accessToken: account.access_token,
-                  expiresAt: account.expires_at,
-                },
-              },
-            },
-          });
-          user.id = newUser.userId;
-          user.role = newUser.role;
-          user.profilePicture = newUser.profilePicture;
-        }
+        const backendUser = await res.json();
+        Object.assign(user, backendUser);
       }
+
       return true;
     },
     async jwt({ token, user }) {
-      if (user) {
-        token.user = user as NextAuthUser;
-      }
-      return token;
+      if (user) return { ...token, ...user };
+
+      if (new Date().getTime() < token.backendTokens.expiresIn) return token;
+
+      return await refreshToken(token);
     },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user = token.user as NextAuthUser;
-        if (!process.env.NEXTAUTH_SECRET) {
-          throw new Error('NEXTAUTH_SECRET is not defined');
-        }
-        session.accessToken = jwt.sign(token, process.env.NEXTAUTH_SECRET);
-      }
+
+    async session({ token, session }) {
+      session.user = token.user;
+      session.backendTokens = token.backendTokens;
+
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };

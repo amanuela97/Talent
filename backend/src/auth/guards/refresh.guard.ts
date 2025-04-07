@@ -29,10 +29,16 @@ export class RefreshJwtGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<UserPayload>(token, {
+      const payload = await this.jwtService.verifyAsync<
+        UserPayload & { exp?: number; iat?: number }
+      >(token, {
         secret: jwtRefreshTokenKey,
       });
-      request['user'] = payload;
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { exp: expIgnored, iat: iatIgnored, ...cleanPayload } = payload;
+
+      request['user'] = cleanPayload;
     } catch {
       throw new UnauthorizedException();
     }

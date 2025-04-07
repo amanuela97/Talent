@@ -9,6 +9,8 @@ import { hash } from 'bcrypt';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SafeUser } from '../backendTypes';
 import { User, Prisma } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UserService {
@@ -39,6 +41,7 @@ export class UserService {
           email: dto.email,
           name: dto.name,
           passwordHash,
+          authProvider: 'CREDENTIALS',
         },
         select: {
           userId: true,
@@ -72,6 +75,49 @@ export class UserService {
 
       throw error;
     }
+  }
+
+  async createUserWithGoogle({
+    email,
+    name,
+    profilePicture,
+    role,
+    account,
+  }: {
+    email: string;
+    name: string;
+    profilePicture: string | null;
+    role: 'ADMIN' | 'CUSTOMER';
+    account: {
+      provider: string;
+      providerAccountId: string;
+      accessToken: string;
+      expiresAt?: number;
+    };
+  }) {
+    const passwordHash = await bcrypt.hash(
+      crypto.randomBytes(32).toString('hex'),
+      10,
+    );
+
+    return this.prisma.user.create({
+      data: {
+        email,
+        name,
+        profilePicture,
+        role,
+        authProvider: 'GOOGLE',
+        passwordHash,
+        accounts: {
+          create: {
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+            accessToken: account.accessToken,
+            expiresAt: account.expiresAt,
+          },
+        },
+      },
+    });
   }
 
   /**

@@ -12,6 +12,7 @@ export default function Dashboard() {
   useEffect(() => {
     getSession().then((session) => {
       if (session) {
+        console.log(session);
         setUser({ ...session.user });
       } else {
         router.push('/login');
