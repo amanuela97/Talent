@@ -11,12 +11,15 @@ import { SafeUser } from '../backendTypes';
 import { User, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class UserService {
   private readonly SALT_ROUNDS = 10;
 
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService,
+    private configService: ConfigService
+  ) { }
 
   /**
    * Create a new user
@@ -35,11 +38,17 @@ export class UserService {
       // Hash password
       const passwordHash = await hash(dto.password, this.SALT_ROUNDS);
 
+      const isAdmin = this.configService
+        .get<string>('ADMIN_LIST')
+        ?.split(',')
+        .includes(dto.email);
+
       // Create user
       const newUser = await this.prisma.user.create({
         data: {
           email: dto.email,
           name: dto.name,
+          role: isAdmin ? 'ADMIN' : 'CUSTOMER',
           passwordHash,
           authProvider: 'CREDENTIALS',
         },
