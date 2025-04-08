@@ -20,7 +20,7 @@ import {
 @ApiTags('Users')
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @UseGuards(JwtGuard)
   @Get(':id')

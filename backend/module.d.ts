@@ -5,5 +5,8 @@ declare namespace NodeJS {
     jwtSecretKey: string;
     jwtRefreshTokenKey: string;
     ADMIN_LIST: string;
+    CLOUD_NAME: string;
+    CLOUD_API_KEY: string;
+    CLOUD_API_SECRET: string;
   }
 }

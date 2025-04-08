@@ -17,9 +17,10 @@ import { ConfigService } from '@nestjs/config';
 export class UserService {
   private readonly SALT_ROUNDS = 10;
 
-  constructor(private readonly prisma: PrismaService,
-    private configService: ConfigService
-  ) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   /**
    * Create a new user

@@ -43,13 +43,30 @@ model Talent {
   hourlyRate          Float
   location            String
   availability        Json
-  rating              Float
+  rating              Float      @default(0)
   socialLinks         Json?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
+  media               Media[]
   reviews             Review[]
   user                User       @relation(fields: [talentId], references: [userId])
   favoriteByCustomers Customer[] @relation("FavoriteTalents")
+}
+
+model Media {
+  id          String   @id @default(cuid())
+  type        MediaType
+  url         String
+  description String?
+  talentId   String
+  talent     Talent  @relation(fields: [talentId], references: [talentId])
+  createdAt   DateTime @default(now())
+}
+
+enum MediaType {
+  VIDEO
+  IMAGE
+  AUDIO
 }
 
 model Customer {
