@@ -20,7 +20,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) { }
+  ) {}
 
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto);
@@ -58,8 +58,8 @@ export class AuthService {
         // User exists - now we need to check if they already have a Google account linked
         const hasGoogleAccount = (
           existingUser.accounts as
-          | { provider: string; providerAccountId: string }[]
-          | undefined
+            | { provider: string; providerAccountId: string }[]
+            | undefined
         )?.some(
           (acc) =>
             acc.provider === 'google' &&
@@ -84,7 +84,6 @@ export class AuthService {
 
           await this.prisma.safeQuery(
             (): Promise<Account> =>
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
               this.prisma.account.create({
                 data: {
                   userId: existingUser.userId,
