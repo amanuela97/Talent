@@ -10,19 +10,34 @@
   },
   "dependencies": {
     "@prisma/client": "6.5.0",
+<<<<<<< HEAD
     "@radix-ui/react-slot": "^1.1.2",
     "bcrypt": "5.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jsonwebtoken": "9.0.2",
     "lucide-react": "^0.487.0",
+=======
+    "@radix-ui/react-slot": "1.1.2",
+    "bcrypt": "5.1.1",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "crypto-js": "4.2.0",
+    "jsonwebtoken": "9.0.2",
+    "lucide-react": "0.487.0",
+>>>>>>> main
     "next": "15.2.4",
     "next-auth": "4.24.11",
     "postcss": "^8.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+<<<<<<< HEAD
     "tailwind-merge": "^3.1.0",
     "tw-animate-css": "^1.2.5",
+=======
+    "tailwind-merge": "3.1.0",
+    "tw-animate-css": "1.2.5",
+>>>>>>> main
     "zustand": "5.0.3"
   },
   "devDependencies": {

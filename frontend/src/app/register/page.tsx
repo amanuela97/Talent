@@ -1,5 +1,6 @@
+'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function Register() {
@@ -21,7 +22,7 @@ export default function Register() {
     const data = await res.json();
 
     if (res.ok) {
-      router.push('/auth/login'); // Redirect to login after registration
+      router.push('/login'); // Redirect to login after registration
     } else {
       setError(data.error);
     }
@@ -63,7 +64,7 @@ export default function Register() {
         </button>
       </form>
       <div className="mt-4">
-        <Link href="/auth/login" className="text-blue-500 hover:underline">
+        <Link href="/login" className="text-blue-500 hover:underline">
           Already have an account? Login
         </Link>
       </div>

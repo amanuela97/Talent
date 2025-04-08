@@ -1,7 +1,8 @@
+'use client';
 import { getSession, signOut } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useAppStore } from '@/app/store/store';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -11,9 +12,10 @@ export default function Dashboard() {
   useEffect(() => {
     getSession().then((session) => {
       if (session) {
+        console.log(session);
         setUser({ ...session.user });
       } else {
-        router.push('/auth/login');
+        router.push('/login');
       }
     });
   }, [router, setUser]);
@@ -27,7 +29,7 @@ export default function Dashboard() {
       <h1 className="text-2xl font-bold mb-4">Welcome, {user.name}!</h1>
       <h1 className="text-xl font-bold mb-4">Role: {user.role}!</h1>
       <button
-        onClick={() => signOut()}
+        onClick={() => signOut({ callbackUrl: '/login' })}
         className="bg-red-500 text-white p-2 rounded"
       >
         Sign Out

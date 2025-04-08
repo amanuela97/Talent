@@ -1,6 +1,4 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type {
+import {
   User,
   Talent,
   Customer,
@@ -8,7 +6,9 @@ import type {
   Review,
   Reply,
   EventBooking,
-} from '../../../../types'; // Adjust path to where your types are stored
+} from '@prisma/client';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 

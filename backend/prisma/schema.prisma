@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../../frontend/node_modules/.prisma/client"
 }
 
 datasource db {
@@ -16,13 +15,25 @@ model User {
   passwordHash   String
   role           Role           @default(CUSTOMER)
   profilePicture String?
+  authProvider   AuthProvider   @default(CREDENTIALS) 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  accounts       Account[]
   admin          Admin?
   customer       Customer?
+  talent         Talent?
   bookings       EventBooking[]
   reviews        Review[]
-  talent         Talent?
+}
+
+model Account {
+  id                 Int      @id @default(autoincrement())
+  provider           String
+  providerAccountId  String
+  accessToken        String
+  expiresAt          Int?
+  userId             String   @unique
+  user              User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
 model Talent {
@@ -94,4 +105,9 @@ enum Role {
   TALENT
   CUSTOMER
   ADMIN
+}
+
+enum AuthProvider {
+  GOOGLE
+  CREDENTIALS
 }
