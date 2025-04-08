@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-@import "tailwindcss";
-@import "tw-animate-css";
-=======
 @import 'tailwindcss';
 @import 'tw-animate-css';
->>>>>>> main
 
 @custom-variant dark (&:is(.dark *));
 
@@ -50,11 +45,6 @@
 
 :root {
   --radius: 0.625rem;
-<<<<<<< HEAD
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-=======
->>>>>>> main
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -84,11 +74,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-<<<<<<< HEAD
-=======
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
->>>>>>> main
 }
 
 .dark {
@@ -129,6 +116,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
