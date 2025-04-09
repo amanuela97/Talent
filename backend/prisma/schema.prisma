@@ -57,6 +57,7 @@ model Media {
   id          String   @id @default(cuid())
   type        MediaType
   url         String
+  publicId    String
   description String?
   talentId   String
   talent     Talent  @relation(fields: [talentId], references: [talentId])
