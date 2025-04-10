@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+/* import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -70,4 +70,127 @@ export default function Register() {
       </div>
     </div>
   );
+} */
+
+import Image from "next/image"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
+import { ArrowLeft } from "lucide-react"
+
+export default function SignupPage() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <div className="container flex justify-start py-4">
+        <Link href="/" className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to home
+        </Link>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex flex-col items-center space-y-4">
+            <Image
+              src="/assets/talent_logo.png"
+              alt="Talent Logo"
+              width={150}
+              height={60}
+              priority
+            />
+            <h1 className="text-2xl font-bold tracking-tight">Create an account</h1>
+            <p className="text-sm text-gray-500">Sign up to start booking amazing talent</p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first-name">First name</Label>
+                <Input id="first-name" type="text" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last-name">Last name</Label>
+                <Input id="last-name" type="text" required />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="name@example.com" required />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" required />
+              <p className="text-xs text-gray-500">Must be at least 8 characters long</p>
+            </div>
+
+            <div className="flex items-start space-x-2">
+              <Checkbox id="terms" className="mt-1" />
+              <Label htmlFor="terms" className="text-sm font-normal">
+                I agree to the{" "}
+                <Link href="#" className="text-orange-500 hover:text-orange-600">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="#" className="text-orange-500 hover:text-orange-600">
+                  Privacy Policy
+                </Link>
+              </Label>
+            </div>
+
+            <Button className="w-full bg-orange-500 hover:bg-orange-600">Create account</Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Button variant="outline" className="w-full">
+                Google
+              </Button>
+              <Button variant="outline" className="w-full">
+                Facebook
+              </Button>
+            </div>
+
+            <div className="text-center text-sm">
+              Already have an account?{" "}
+              <Link href="/login" className="text-orange-500 hover:text-orange-600 font-medium">
+                Log in
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer className="py-6 border-t">
+        <div className="container flex flex-col sm:flex-row justify-between items-center">
+          <p className="text-xs text-gray-500">
+            &copy; {new Date().getFullYear()} Talent Booking Platform. All rights reserved.
+          </p>
+          <div className="flex gap-4 mt-4 sm:mt-0">
+            <Link href="#" className="text-xs text-gray-500 hover:underline">
+              Terms
+            </Link>
+            <Link href="#" className="text-xs text-gray-500 hover:underline">
+              Privacy
+            </Link>
+            <Link href="#" className="text-xs text-gray-500 hover:underline">
+              Help
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
 }
+

@@ -36,7 +36,11 @@ export default function Home() {
             <Link href="/login" className="text-sm font-medium hover:underline underline-offset-4 hidden md:inline-flex">
               Log In
             </Link>
-            <Button>Sign Up</Button>
+            <Link href="/register">
+              <Button>
+                Sign Up
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
