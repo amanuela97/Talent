@@ -26,3 +26,7 @@ export interface UserPayload {
 }
 
 export type Role = 'TALENT' | 'CUSTOMER' | 'ADMIN';
+
+export interface AuthenticatedRequest extends Request {
+  user?: UserPayload; // Replace `any` with the appropriate user type if available
+}

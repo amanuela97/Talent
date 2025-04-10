@@ -19,7 +19,16 @@ export class CloudinaryService {
   async uploadFiles(
     files: Express.Multer.File[],
     talentId: string,
-  ): Promise<any[]> {
+  ): Promise<
+    (
+      | {
+          url: string;
+          type: string;
+          publicId: string;
+        }
+      | undefined
+    )[]
+  > {
     const folderBase = `talent/${talentId}`;
     const results = await Promise.all(
       files.map(async (file) => {

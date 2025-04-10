@@ -8,6 +8,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateTalentDto } from './dto/create-talent.dto';
 import { UpdateTalentDto } from './dto/update-talent.dto';
@@ -134,6 +135,29 @@ export class TalentService {
       throw new NotFoundException(`Talent with ID ${talentId} not found`);
     }
 
+    // First, handle media removals if any
+    if (updateTalentDto.mediasToRemove?.length) {
+      // Delete from Cloudinary first
+      for (const media of updateTalentDto.mediasToRemove) {
+        if (media.publicId) {
+          await this.cloudinaryService.deleteFile(media.publicId);
+        }
+      }
+
+      // Then delete from database
+      await this.prisma.safeQuery(() =>
+        this.prisma.media.deleteMany({
+          where: {
+            id: {
+              in: (updateTalentDto.mediasToRemove ?? []).map(
+                (media) => media.id,
+              ),
+            },
+          },
+        }),
+      );
+    }
+
     // Update talent profile
     const updatedTalent = await this.prisma.safeQuery(() =>
       this.prisma.talent.update({
@@ -231,7 +255,8 @@ export class TalentService {
     // Map Cloudinary upload results to media records
     const mediaToCreate = allFiles.map((item, index) => ({
       type: item.type,
-      url: uploadResults[index].url,
+      url: uploadResults[index]?.url ?? '',
+      publicId: uploadResults[index]?.publicId ?? '',
       description: '',
       talentId,
     }));
@@ -433,11 +458,19 @@ export class TalentService {
   /**
    * Remove a talent profile
    */
-  async remove(talentId: string) {
+  async remove(talentId: string, userEmail: string | undefined) {
     // Check if talent exists
     const existingTalent = await this.prisma.safeQuery(() =>
       this.prisma.talent.findUnique({
         where: { talentId },
+        include: {
+          user: {
+            select: {
+              email: true,
+            },
+          },
+          media: true,
+        },
       }),
     );
 
@@ -445,41 +478,43 @@ export class TalentService {
       throw new NotFoundException(`Talent with ID ${talentId} not found`);
     }
 
-    // Delete all media associated with the talent from Cloudinary
-    const mediaResult = await this.prisma.safeQuery(() =>
-      this.prisma.media.findMany({
-        where: { talentId },
-      }),
-    );
-
-    if (mediaResult instanceof Error) {
-      throw new BadRequestException('Failed to fetch media items');
+    if (!userEmail) {
+      throw new Error('UserEmail is undefined');
     }
 
-    // Delete media files from Cloudinary
-    for (const item of mediaResult) {
-      const publicId = this.cloudinaryService.extractPublicIdFromUrl(item.url);
-      if (publicId) {
-        await this.cloudinaryService.deleteFile(publicId);
+    if (existingTalent.user.email !== userEmail) {
+      throw new ForbiddenException(
+        'You can only delete your own talent profile',
+      );
+    }
+
+    // Start a transaction to ensure all operations succeed or fail together
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. First delete all media records from Cloudinary
+      for (const media of existingTalent.media) {
+        if (media.publicId) {
+          await this.cloudinaryService.deleteFile(media.publicId);
+        }
       }
-    }
 
-    // Delete talent profile (media will cascade delete due to relations)
-    await this.prisma.safeQuery(() =>
-      this.prisma.talent.delete({
+      // 2. Delete all media records from the database
+      await tx.media.deleteMany({
         where: { talentId },
-      }),
-    );
+      });
 
-    // Update user role back to CUSTOMER
-    await this.prisma.safeQuery(() =>
-      this.prisma.user.update({
+      // 3. Delete the talent profile
+      await tx.talent.delete({
+        where: { talentId },
+      });
+
+      // 4. Update user role back to CUSTOMER
+      await tx.user.update({
         where: { userId: talentId },
         data: { role: Role.CUSTOMER },
-      }),
-    );
+      });
 
-    return { success: true, message: 'Talent profile deleted successfully' };
+      return { success: true, message: 'Talent profile deleted successfully' };
+    });
   }
 
   /**
@@ -519,6 +554,7 @@ export class TalentService {
         data: {
           type: mediaType,
           url: uploadResult.url,
+          publicId: uploadResult.publicId,
           description: description || '',
           talentId,
         },

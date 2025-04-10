@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
@@ -18,6 +17,7 @@ import {
   BadRequestException,
   ParseUUIDPipe,
   UploadedFiles,
+  Req,
 } from '@nestjs/common';
 import {
   FileInterceptor,
@@ -39,6 +39,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { AuthenticatedRequest } from 'src/backendTypes';
 
 @ApiTags('Talents')
 @Controller('talents')
@@ -219,7 +220,13 @@ export class TalentController {
   @Patch(':id')
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
-  @UseInterceptors(AnyFilesInterceptor())
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'images', maxCount: 10 },
+      { name: 'videos', maxCount: 5 },
+      { name: 'audios', maxCount: 5 },
+    ]),
+  )
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Update talent profile with optional media files' })
   @ApiParam({ name: 'id', description: 'Talent ID' })
@@ -268,7 +275,12 @@ export class TalentController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateTalentDto: UpdateTalentDto,
-    @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
+    @UploadedFiles()
+    files: {
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+      audios?: Express.Multer.File[];
+    },
   ) {
     const talentData: UpdateTalentDto = {};
 
@@ -280,8 +292,14 @@ export class TalentController {
         : JSON.parse(updateTalentDto.services);
     }
 
+    if (updateTalentDto.mediasToRemove) {
+      talentData.mediasToRemove = Array.isArray(updateTalentDto.mediasToRemove)
+        ? updateTalentDto.mediasToRemove
+        : JSON.parse(updateTalentDto.mediasToRemove);
+    }
+
     if (updateTalentDto.hourlyRate) {
-      talentData.hourlyRate = updateTalentDto.hourlyRate;
+      talentData.hourlyRate = parseFloat(updateTalentDto.hourlyRate.toString());
     }
 
     if (updateTalentDto.location)
@@ -329,8 +347,11 @@ export class TalentController {
     description: 'Talent profile deleted successfully',
   })
   @ApiResponse({ status: 404, description: 'Talent profile not found' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.talentService.remove(id);
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.talentService.remove(id, req?.user?.email);
   }
 
   @Post(':id/media')
