@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft } from "lucide-react"
+import GoogleButton from "react-google-button"
 
 
 export default function LoginPage() {
@@ -88,8 +89,9 @@ export default function LoginPage() {
                     Remember me for 30 days
                   </Label>
                 </div>
-
-                <Button type="submit" className="w-full bg-orange-500 hover:bg-orange-600">Log in</Button>
+                <div className="flex justify-center">
+                  <Button type="submit" className="min-w-[80px] max-w-[120px] w-[30%] bg-orange-500 hover:bg-orange-600">Log in</Button>
+                </div>
               </form>
 
               <div className="relative">
@@ -101,10 +103,8 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center">
-                <Button onClick={() => signIn('google', { callbackUrl: '/dashboard' })} variant="outline" className="w-full">
-                  Google
-                </Button>
+              <div className="flex justify-center">
+                <GoogleButton onClick={() => signIn('google', { callbackUrl: '/dashboard' })} className="w-auto" />
               </div>
 
               <div className="text-center text-sm">
