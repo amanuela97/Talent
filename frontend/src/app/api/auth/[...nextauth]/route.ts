@@ -1,9 +1,10 @@
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { JWT } from 'next-auth/jwt';
-import { BACKEND_URL } from '@/app/utils/constants';
 import NextAuth from 'next-auth/next';
 import { AuthOptions } from 'next-auth';
+import axiosInstance from '@/app/utils/axios';
+import { isAxiosError } from 'axios';
 
 function validateEnv() {
   const required = [
@@ -22,24 +23,29 @@ function validateEnv() {
 validateEnv();
 
 async function refreshToken(token: JWT): Promise<JWT> {
-  const res = await fetch(BACKEND_URL + '/auth/refresh', {
-    method: 'POST',
-    headers: {
-      authorization: `Refresh ${token.backendTokens.refreshToken}`,
-    },
-  });
-  console.log('refreshed');
+  try {
+    const res = await axiosInstance.post(
+      '/auth/refresh',
+      {},
+      {
+        headers: {
+          Authorization: `Refresh ${token.backendTokens.refreshToken}`,
+        },
+      }
+    );
 
-  if (!res.ok) {
-    console.log(res.statusText);
+    return {
+      ...token,
+      backendTokens: res.data,
+    };
+  } catch (error) {
+    if (isAxiosError(error)) {
+      console.log(error.response?.statusText || 'Refresh token failed');
+    } else {
+      console.log('An unknown error occurred during token refresh');
+    }
     return token;
   }
-  const response = await res.json();
-
-  return {
-    ...token,
-    backendTokens: response,
-  };
 }
 
 export const authOptions: AuthOptions = {
@@ -72,23 +78,21 @@ export const authOptions: AuthOptions = {
         if (!credentials?.username || !credentials?.password) {
           throw new Error('Missing username or password');
         }
+
         const { username, password } = credentials;
-        const res = await fetch(BACKEND_URL + '/auth/login', {
-          method: 'POST',
-          body: JSON.stringify({
-            username,
+        try {
+          const res = await axiosInstance.post('/auth/login', {
+            email: username,
             password,
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        if (!res.ok) {
-          const error = await res.json(); // Assuming your API sends a JSON error message
-          throw new Error(error?.message || 'Invalid email ');
+          });
+          return res.data;
+        } catch (error: unknown) {
+          console.log('here');
+          const errorMessage = isAxiosError(error)
+            ? error.response?.data?.message
+            : 'Invalid email';
+          throw new Error(errorMessage);
         }
-        const user = await res.json();
-        return user;
       },
     }),
   ],
@@ -96,23 +100,23 @@ export const authOptions: AuthOptions = {
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === 'google') {
-        const res = await fetch(`${BACKEND_URL}/auth/google-login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        try {
+          const res = await axiosInstance.post('/auth/google-login', {
             name: user.name,
             email: user.email,
             image: user.image,
             providerAccountId: account.providerAccountId,
             accessToken: account.access_token,
             expiresAt: account.expires_at,
-          }),
-        });
-
-        if (!res.ok) return false;
-
-        const backendUser = await res.json();
-        Object.assign(user, backendUser);
+          });
+          Object.assign(user, res.data);
+        } catch (error: unknown) {
+          const errorMessage = isAxiosError(error)
+            ? error.response?.data?.message
+            : 'Invalid google email account';
+          console.log(errorMessage);
+          return false;
+        }
       }
 
       return true;

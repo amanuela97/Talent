@@ -16,7 +16,7 @@ export default function Login() {
   ): Promise<void> => {
     e.preventDefault();
     const res = await signIn('credentials', {
-      email,
+      username: email,
       password,
       redirect: false,
     });
@@ -40,6 +40,7 @@ export default function Login() {
             type="email"
             placeholder="Email"
             className="border p-2 rounded"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -48,6 +49,7 @@ export default function Login() {
             type="password"
             placeholder="Password"
             className="border p-2 rounded"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
