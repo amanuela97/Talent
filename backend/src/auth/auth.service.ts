@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   UnauthorizedException,
-  NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { LoginDto } from './dto/auth.dto';
@@ -185,40 +186,92 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    // Find the user by email
-    const user = await this.userService.findByEmail(email);
-    if (!user) {
-      throw new NotFoundException('No user found with this email address');
+    try {
+      // Find the user by email
+      const user = await this.userService.findByEmail(email);
+      if (!user) {
+        // For security, use the same response even when user doesn't exist
+        return {
+          message:
+            'If an account exists with that email, a password reset link has been sent.',
+        };
+      }
+
+      const now = new Date();
+
+      let resetToken = user.resetToken;
+
+      let resetTokenExpiry = user.resetTokenExpiry;
+      let needsNewToken = false;
+
+      // Check if a token already exists and is still valid
+      if (!resetToken || !resetTokenExpiry || resetTokenExpiry <= now) {
+        // Token doesn't exist or has expired, generate a new one
+        needsNewToken = true;
+        resetToken = crypto.randomBytes(32).toString('hex');
+        resetTokenExpiry = new Date(Date.now() + this.RESET_TOKEN_EXPIRES);
+
+        // Update the user with the new reset token and expiry
+        await this.prisma.safeQuery(() =>
+          this.prisma.user.update({
+            where: { userId: user.userId },
+            data: {
+              resetToken,
+              resetTokenExpiry,
+            },
+          }),
+        );
+      } else {
+        // A valid token already exists
+        const minutesRemaining = Math.floor(
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          (resetTokenExpiry.getTime() - now.getTime()) / 60000,
+        );
+
+        // Optionally log or track repeated requests
+        console.log(
+          `Password reset requested again for ${email}. Previous reset url still valid for ${minutesRemaining} minutes.`,
+        );
+      }
+
+      // Only send email if we generated a new token or for security testing
+      if (
+        needsNewToken ||
+        this.configService.get<string>('NODE_ENV') === 'development'
+      ) {
+        // Create the reset URL
+        const resetUrl = `${this.configService.get<string>(
+          'FRONTEND_URL',
+          'http://localhost:3000',
+        )}/reset-password/${resetToken}`;
+
+        // Send the email
+        await this.sendPasswordResetEmail(user.email, user.name, resetUrl);
+      }
+
+      // Return success message (don't reveal if user exists for security)
+      return {
+        message:
+          'If an account exists with that email, a password reset link has been sent.',
+        // Additional information for development environments
+        ...(this.configService.get<string>('NODE_ENV') === 'development' && {
+          debug: {
+            tokenSent: needsNewToken,
+            expiresIn: resetTokenExpiry
+              ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                `${Math.floor((resetTokenExpiry.getTime() - now.getTime()) / 60000)} minutes`
+              : 'N/A',
+          },
+        }),
+      };
+    } catch (error) {
+      console.error('Password reset error:', error);
+      // Still use generic message for security
+      return {
+        message:
+          'If an account exists with that email, a password reset link has been sent.',
+      };
     }
-
-    // Generate a unique token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-
-    // Calculate expiry time (15 minutes from now)
-    const resetTokenExpiry = new Date(Date.now() + this.RESET_TOKEN_EXPIRES);
-
-    // Update the user with the reset token and expiry
-    await this.prisma.safeQuery(() =>
-      this.prisma.user.update({
-        where: { userId: user.userId },
-        data: {
-          resetToken,
-          resetTokenExpiry,
-        },
-      }),
-    );
-
-    // Create the reset URL
-    const resetUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000')}/reset-password/${resetToken}`;
-
-    // Send the email
-    await this.sendPasswordResetEmail(user.email, user.name, resetUrl);
-
-    // Return success message (don't reveal if user exists for security)
-    return {
-      message:
-        'If an account exists with that email, a password reset link has been sent.',
-    };
   }
 
   // New method for reset password
