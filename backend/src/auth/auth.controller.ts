@@ -21,6 +21,8 @@ import {
 } from '@nestjs/swagger';
 import { RequestWithUser } from 'src/backendTypes';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset.password.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -69,5 +71,23 @@ export class AuthController {
   async refreshToken(@Request() req: RequestWithUser) {
     const user = req.user;
     return await this.authService.refreshToken(user);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset link' })
+  @ApiResponse({ status: 200, description: 'Password reset email sent' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async forgotPassword(@Body(new ValidationPipe()) dto: ForgotPasswordDto) {
+    return await this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiResponse({ status: 200, description: 'Password successfully reset' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  async resetPassword(@Body(new ValidationPipe()) dto: ResetPasswordDto) {
+    return await this.authService.resetPassword(dto.token, dto.newPassword);
   }
 }

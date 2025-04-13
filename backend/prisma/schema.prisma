@@ -18,6 +18,8 @@ model User {
   authProvider   AuthProvider   @default(CREDENTIALS) 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  resetToken     String?        @unique
+  resetTokenExpiry DateTime?
   accounts       Account[]
   admin          Admin?
   customer       Customer?
