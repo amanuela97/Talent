@@ -27,7 +27,7 @@ export default function LoginPage() {
   ): Promise<void> => {
     e.preventDefault();
     const res = await signIn('credentials', {
-      email,
+      username: email,
       password,
       redirect: false,
     });
@@ -69,7 +69,7 @@ export default function LoginPage() {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" type="email" placeholder="name@example.com" required value={email}
-                    onChange={(e) => setEmail(e.target.value)} />
+                    onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
                 </div>
 
                 <div className="space-y-2">
@@ -80,7 +80,7 @@ export default function LoginPage() {
                     </Link>
                   </div>
                   <Input id="password" type="password" required value={password}
-                    onChange={(e) => setPassword(e.target.value)} />
+                    onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
                 </div>
 
                 <div className="flex items-center space-x-2">
