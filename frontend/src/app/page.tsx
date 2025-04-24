@@ -65,14 +65,14 @@ export default function Home() {
                   </Button>
                 </div>
               </div>
-              <div className="relative h-[350px] lg:h-[500px] rounded-xl overflow-hidden">
+              {/* <div className="relative h-[350px] lg:h-[500px] rounded-xl overflow-hidden">
                 <Image
                   src="/placeholder.svg?height=500&width=800"
                   alt="Happy performers entertaining at an event"
                   fill
                   className="object-cover"
                 />
-              </div>
+              </div> */}
             </div>
           </div>
         </section>
@@ -188,14 +188,14 @@ export default function Home() {
                 </blockquote>
                 <p className="font-medium">- Michael Chen, Corporate Event</p>
               </div>
-              <div className="relative h-[400px] rounded-xl overflow-hidden">
+              {/* <div className="relative h-[400px] rounded-xl overflow-hidden">
                 <Image
                   src="/placeholder.svg?height=400&width=600"
                   alt="Happy customers at an event with performers"
                   fill
                   className="object-cover"
                 />
-              </div>
+              </div> */}
             </div>
           </div>
         </section>
@@ -334,24 +334,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <footer className="border-t bg-gray-50">
-        <div className="container flex flex-col gap-2 sm:flex-row py-6 w-full items-center px-4 md:px-6">
-          <p className="text-xs text-gray-500">
-            &copy; {new Date().getFullYear()} Talent Booking Platform. All rights reserved.
-          </p>
-          <nav className="sm:ml-auto flex gap-4 sm:gap-6">
-            <Link href="#" className="text-xs text-gray-500 hover:underline underline-offset-4">
-              Terms of Service
-            </Link>
-            <Link href="#" className="text-xs text-gray-500 hover:underline underline-offset-4">
-              Privacy Policy
-            </Link>
-            <Link href="#" className="text-xs text-gray-500 hover:underline underline-offset-4">
-              Cookies
-            </Link>
-          </nav>
-        </div>
-      </footer>
     </div>
   )
 }

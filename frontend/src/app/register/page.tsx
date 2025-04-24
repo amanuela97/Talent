@@ -1,76 +1,4 @@
 'use client';
-/* import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-
-export default function Register() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const router = useRouter();
-
-  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ name, email, password }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      router.push('/login'); // Redirect to login after registration
-    } else {
-      setError(data.error);
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-2xl font-bold mb-4">Register</h1>
-
-      {error && <p className="text-red-500">{error}</p>}
-
-      <form onSubmit={handleRegister} className="flex flex-col space-y-4">
-        <input
-          type="text"
-          placeholder="Name"
-          className="border p-2 rounded"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          className="border p-2 rounded"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="border p-2 rounded"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" className="bg-green-500 text-white p-2 rounded">
-          Register
-        </button>
-      </form>
-      <div className="mt-4">
-        <Link href="/login" className="text-blue-500 hover:underline">
-          Already have an account? Login
-        </Link>
-      </div>
-    </div>
-  );
-} */
 
 import Image from "next/image"
 import Link from "next/link"
@@ -202,25 +130,6 @@ export default function Register() {
             </div>
           </div>
         </div>
-
-        <footer className="py-6 border-t">
-          <div className="container flex flex-col sm:flex-row justify-between items-center">
-            <p className="text-xs text-gray-500">
-              &copy; {new Date().getFullYear()} Talent Booking Platform. All rights reserved.
-            </p>
-            <div className="flex gap-4 mt-4 sm:mt-0">
-              <Link href="#" className="text-xs text-gray-500 hover:underline">
-                Terms
-              </Link>
-              <Link href="#" className="text-xs text-gray-500 hover:underline">
-                Privacy
-              </Link>
-              <Link href="#" className="text-xs text-gray-500 hover:underline">
-                Help
-              </Link>
-            </div>
-          </div>
-        </footer>
       </div >
     </ClientOnly>
   )

@@ -35,7 +35,7 @@ export default function LoginPage() {
     if (res?.error) {
       setError(res.error);
     } else {
-      router.push('/dashboard'); // Redirect to protected page after login
+      router.push('/dashboard/talent'); // Redirect to protected page after login
     }
   };
 
@@ -104,7 +104,7 @@ export default function LoginPage() {
               </div>
 
               <div className="flex justify-center">
-                <GoogleButton onClick={() => signIn('google', { callbackUrl: '/dashboard' })} className="w-auto" />
+                <GoogleButton onClick={() => signIn('google', { callbackUrl: '/dashboard/talent' })} className="w-auto" />
               </div>
 
               <div className="text-center text-sm">
@@ -116,25 +116,6 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-
-        <footer className="py-6 border-t">
-          <div className="container flex flex-col sm:flex-row justify-between items-center">
-            <p className="text-xs text-gray-500">
-              &copy; {new Date().getFullYear()} Talent Booking Platform. All rights reserved.
-            </p>
-            <div className="flex gap-4 mt-4 sm:mt-0">
-              <Link href="#" className="text-xs text-gray-500 hover:underline">
-                Terms
-              </Link>
-              <Link href="#" className="text-xs text-gray-500 hover:underline">
-                Privacy
-              </Link>
-              <Link href="#" className="text-xs text-gray-500 hover:underline">
-                Help
-              </Link>
-            </div>
-          </div>
-        </footer>
       </div>
     </ClientOnly>
   )
