@@ -5,10 +5,8 @@ export type SafeUser = Omit<User, 'passwordHash'>;
 
 export interface RequestWithUser extends Request {
   user: {
-    email: string;
-    sub: {
-      name: string;
-    };
+    userId: string;
+    username: string;
   };
 }
 
@@ -19,10 +17,8 @@ export interface TokenResponse {
 }
 
 export interface UserPayload {
-  email: string;
-  sub: {
-    name: string;
-  };
+  userId: string;
+  username: string;
 }
 
 export type Role = 'TALENT' | 'CUSTOMER' | 'ADMIN';

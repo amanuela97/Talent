@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import axios from '@/app/utils/axios';
+import { User } from '@prisma/client';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -13,18 +15,27 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ name, email, password }),
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const res = await axios.post(
+      '/api/auth/register',
+      {
+        name,
+        email,
+        password,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    const data = await res.json();
+    const result: Omit<User, 'passwordHash'> = await res.data;
+    console.log('register', result);
 
-    if (res.ok) {
+    if (res.status === 200) {
       router.push('/login'); // Redirect to login after registration
     } else {
-      setError(data.error);
+      setError(res.data.error);
     }
   };
 

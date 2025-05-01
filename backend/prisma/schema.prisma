@@ -26,6 +26,9 @@ model User {
   talent         Talent?
   bookings       EventBooking[]
   reviews        Review[]
+  messages       Message[]      @relation("UserMessages")
+  conversations  UserOnConversation[]
+  readStatuses   MessageReadStatus[]   // NEW: read receipts by this user
 }
 
 model Account {
@@ -130,4 +133,52 @@ enum Role {
 enum AuthProvider {
   GOOGLE
   CREDENTIALS
+}
+
+model Conversation {
+  id           String                @id @default(uuid())
+  participants UserOnConversation[]
+  messages     Message[]
+  updatedAt    DateTime              @updatedAt
+  createdAt    DateTime              @default(now())
+
+  // Optional: add group chat features
+  name         String?               // group chat name (null for 1-on-1)
+  isGroup      Boolean               @default(false)
+  groupImage   String?               // optional image for group
+}
+
+model UserOnConversation {
+  id             String        @id @default(uuid())
+  userId         String
+  conversationId String
+
+  user           User          @relation(fields: [userId], references: [userId])
+  conversation   Conversation  @relation(fields: [conversationId], references: [id])
+
+  @@unique([userId, conversationId])
+}
+
+model Message {
+  id              String               @id @default(uuid())
+  content         String
+  senderId        String
+  conversationId  String
+  createdAt       DateTime             @default(now())
+
+  sender          User                 @relation("UserMessages", fields: [senderId], references: [userId])
+  conversation    Conversation         @relation(fields: [conversationId], references: [id])
+  readStatuses    MessageReadStatus[] // NEW: track read status per user
+}
+
+model MessageReadStatus {
+  id         String    @id @default(uuid())
+  messageId  String
+  userId     String
+  readAt     DateTime  @default(now())
+
+  message    Message   @relation(fields: [messageId], references: [id])
+  user       User      @relation(fields: [userId], references: [userId])
+
+  @@unique([messageId, userId]) // prevent duplicate read tracking
 }

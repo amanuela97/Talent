@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   UnauthorizedException,
@@ -46,10 +44,8 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto);
     const payload: UserPayload = {
-      email: user.email,
-      sub: {
-        name: user.name,
-      },
+      userId: user.userId,
+      username: user.name,
     };
 
     return {
@@ -91,8 +87,8 @@ export class AuthService {
           console.log('has google account', hasGoogleAccount);
           // User already has this Google account linked - just log them in
           const payload: UserPayload = {
-            email: existingUser.email,
-            sub: { name: existingUser.name },
+            userId: existingUser.userId,
+            username: existingUser.name,
           };
 
           return {
@@ -128,8 +124,8 @@ export class AuthService {
           );
 
           const payload: UserPayload = {
-            email: existingUser.email,
-            sub: { name: existingUser.name },
+            userId: existingUser.userId,
+            username: existingUser.name,
           };
 
           return {
@@ -165,8 +161,8 @@ export class AuthService {
           });
 
         const payload: UserPayload = {
-          email: user.email,
-          sub: { name: user.name },
+          userId: user.userId,
+          username: user.name,
         };
 
         return {
@@ -224,7 +220,6 @@ export class AuthService {
       } else {
         // A valid token already exists
         const minutesRemaining = Math.floor(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
           (resetTokenExpiry.getTime() - now.getTime()) / 60000,
         );
 
@@ -258,8 +253,7 @@ export class AuthService {
           debug: {
             tokenSent: needsNewToken,
             expiresIn: resetTokenExpiry
-              ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                `${Math.floor((resetTokenExpiry.getTime() - now.getTime()) / 60000)} minutes`
+              ? `${Math.floor((resetTokenExpiry.getTime() - now.getTime()) / 60000)} minutes`
               : 'N/A',
           },
         }),

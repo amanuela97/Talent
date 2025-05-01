@@ -87,7 +87,6 @@ export const authOptions: AuthOptions = {
           });
           return res.data;
         } catch (error: unknown) {
-          console.log('here');
           const errorMessage = isAxiosError(error)
             ? error.response?.data?.message
             : 'Invalid email';

@@ -1,28 +1,21 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState, use } from 'react';
 import axios from '@/app/utils/axios';
 import { isAxiosError } from 'axios';
 
-export default function ResetPasswordPage({
-  params,
-}: {
-  params: { token: string[] };
-}) {
+type Props = {
+  params: Promise<{ token: string }>;
+};
+
+export default function ResetPasswordPage({ params }: Props) {
+  const { token } = use(params);
   const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [token, setToken] = useState('');
-
-  useEffect(() => {
-    // Reconstruct the token from the catch-all route
-    if (params.token && Array.isArray(params.token)) {
-      setToken(params.token.join('/'));
-    }
-  }, [params.token]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
