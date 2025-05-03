@@ -19,7 +19,7 @@ export default function Home() {
           <Link href="/" className="flex items-center gap-2">
             {/* Direct image reference with explicit width and height */}
             <Image
-              src="/assets/talent_logo.png"
+              src="/assets/talent-logo.png"
               alt="Talent Logo"
               width={120}
               height={48}

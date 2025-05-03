@@ -36,7 +36,6 @@ export default async function RootLayout({
         <SessionProviderWrapper session={session}>
           {children}
         </SessionProviderWrapper>
-        {children}
         <Footer />
       </body>
     </html>

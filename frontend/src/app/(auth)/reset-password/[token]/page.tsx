@@ -1,8 +1,8 @@
 'use client';
 
 import type React from 'react';
-
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import axios from '@/app/utils/axios';
@@ -10,34 +10,49 @@ import { isAxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, CheckCircle2, Lock } from 'lucide-react';
 
-export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+type Props = {
+  params: Promise<{ token: string }>;
+};
+
+export default function ResetPasswordPage({ params }: Props) {
+  const { token } = use(params);
+
+  const router = useRouter();
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setMessage('');
     setError('');
+    setMessage('');
     setIsSubmitting(true);
 
+    if (newPassword !== confirmPassword) {
+      setIsSubmitting(false);
+      return setError('Passwords do not match');
+    }
+
     try {
-      const res = await axios.post('/auth/forgot-password', {
-        email,
+      await axios.post('/auth/reset-password', {
+        token,
+        newPassword,
       });
-      console.log(res);
-      setMessage(res.data.message || 'Password reset email has been sent.');
+
+      setMessage('Password reset successful! You can now log in.');
+      setTimeout(() => {
+        router.push('/login');
+      }, 2000);
     } catch (err: unknown) {
       const errorMsg = isAxiosError(err)
-        ? err?.response?.data?.message
-        : 'Something went wrong. Try again.';
+        ? err.response?.data?.message
+        : 'Something went wrong';
       setError(errorMsg);
-      console.log(errorMsg);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -64,43 +79,53 @@ export default function ForgotPasswordPage() {
               height={60}
               priority
             />
+            <div className="rounded-full bg-orange-100 p-3">
+              <Lock className="h-6 w-6 text-orange-500" />
+            </div>
             <h1 className="text-2xl font-bold tracking-tight">
               Reset your password
             </h1>
             <p className="text-sm text-gray-500 text-center">
-              Enter your email address and we'll send you a link to reset your
-              password
+              Please enter a new password for your account
             </p>
           </div>
 
           <div className="space-y-6">
             {message && (
               <Alert className="bg-green-50 border-green-200 text-green-800">
-                <AlertDescription>
-                  {typeof message === 'string'
-                    ? message
-                    : 'Password reset email has been sent.'}
-                </AlertDescription>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                <AlertDescription>{message}</AlertDescription>
               </Alert>
             )}
 
             {error && (
               <Alert className="bg-red-50 border-red-200 text-red-800">
-                <AlertDescription>
-                  {typeof error === 'string' ? error : 'An error occurred.'}
-                </AlertDescription>
+                <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="new-password">New Password</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  Must be at least 8 characters long
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
               </div>
@@ -111,18 +136,8 @@ export default function ForgotPasswordPage() {
                   className="min-w-[80px] max-w-[120px] w-[200px] bg-orange-500 hover:bg-orange-600"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Sending...' : 'Send reset link'}
+                  {isSubmitting ? 'Resetting...' : 'Reset Password'}
                 </Button>
-              </div>
-
-              <div className="text-center text-sm">
-                Remember your password?{' '}
-                <Link
-                  href="/login"
-                  className="text-orange-500 hover:text-orange-600 font-medium"
-                >
-                  Back to login
-                </Link>
               </div>
             </form>
           </div>

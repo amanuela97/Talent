@@ -83,7 +83,6 @@ export class AuthService {
         );
 
         if (hasGoogleAccount) {
-          console.log('has google account', hasGoogleAccount);
           // User already has this Google account linked - just log them in
           const payload: UserPayload = {
             userId: existingUser.userId,

@@ -63,12 +63,13 @@ export default function Register() {
           <div className="w-full max-w-md space-y-8">
             <div className="flex flex-col items-center space-y-4">
               <Image
-                src="/assets/talent_logo.png"
+                src="/assets/talent-logo.png"
                 alt="Talent Logo"
-                width={150}
-                height={60}
+                width={100}
+                height={50}
                 priority
               />
+
               <h1 className="text-2xl font-bold tracking-tight">
                 Create an account
               </h1>

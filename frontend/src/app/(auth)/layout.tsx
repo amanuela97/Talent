@@ -2,6 +2,7 @@
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useEffect } from 'react';
+import Loader from '@/components/custom/Loader';
 
 export default function AuthLayout({
   children,
@@ -12,13 +13,12 @@ export default function AuthLayout({
 
   useEffect(() => {
     if (status === 'authenticated') {
-      console.log('authlaout');
       redirect('/dashboard');
     }
   }, [status]);
 
   if (status === 'loading') {
-    return <div>Loading...</div>;
+    return <Loader />;
   }
 
   return <div>{children}</div>;
