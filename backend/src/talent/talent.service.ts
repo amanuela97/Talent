@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   NotFoundException,
@@ -458,7 +453,7 @@ export class TalentService {
   /**
    * Remove a talent profile
    */
-  async remove(talentId: string, userEmail: string | undefined) {
+  async remove(talentId: string, userId: string | undefined) {
     // Check if talent exists
     const existingTalent = await this.prisma.safeQuery(() =>
       this.prisma.talent.findUnique({
@@ -466,7 +461,7 @@ export class TalentService {
         include: {
           user: {
             select: {
-              email: true,
+              userId: true,
             },
           },
           media: true,
@@ -478,11 +473,11 @@ export class TalentService {
       throw new NotFoundException(`Talent with ID ${talentId} not found`);
     }
 
-    if (!userEmail) {
-      throw new Error('UserEmail is undefined');
+    if (!userId) {
+      throw new Error('userId is undefined');
     }
 
-    if (existingTalent.user.email !== userEmail) {
+    if (existingTalent.user.userId !== userId) {
       throw new ForbiddenException(
         'You can only delete your own talent profile',
       );

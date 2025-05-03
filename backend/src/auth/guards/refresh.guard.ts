@@ -15,11 +15,16 @@ export class RefreshJwtGuard implements CanActivate {
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const token = this.extractTokenFromHeader(request);
 
-    if (!token) throw new UnauthorizedException();
+    // Extract token from cookies instead of headers
+    const token = this.extractTokenFromCookies(request);
+
+    if (!token) {
+      throw new UnauthorizedException('Refresh token not found in cookies');
+    }
 
     const jwtRefreshTokenKey =
       this.configService.get<string>('jwtRefreshTokenKey');
@@ -35,19 +40,34 @@ export class RefreshJwtGuard implements CanActivate {
         secret: jwtRefreshTokenKey,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { exp: expIgnored, iat: iatIgnored, ...cleanPayload } = payload;
-
-      request['user'] = cleanPayload;
-    } catch {
-      throw new UnauthorizedException();
+      // Attach user info to request
+      request['user'] = {
+        userId: payload.userId,
+        username: payload.username,
+      };
+    } catch (error: unknown) {
+      // Log the error for debugging (optional)
+      if (error instanceof Error) {
+        console.error('JWT verification failed:', error.message);
+      } else {
+        console.error('JWT verification failed with an unknown error');
+      }
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
     return true;
   }
 
-  private extractTokenFromHeader(request: Request) {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Refresh' ? token : undefined;
+  private extractTokenFromCookies(request: Request): string | undefined {
+    // Access the cookies from the request
+    // Note: Make sure you have cookie-parser middleware configured
+    const refreshToken: string | undefined = (
+      request.cookies as Record<string, string>
+    )?.refreshToken;
+
+    if (!refreshToken)
+      throw new UnauthorizedException('Refresh token not found');
+
+    return refreshToken; // Adjust the cookie name as needed
   }
 }

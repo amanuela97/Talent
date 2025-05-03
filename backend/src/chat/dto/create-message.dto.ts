@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateMessageDto {
@@ -23,8 +23,8 @@ export class CreateMessageDto {
     example: 'sender-id-1',
   })
   @IsString()
-  @IsNotEmpty()
-  senderId: string;
+  @IsOptional()
+  senderId?: string;
 
   // The senderId will be extracted from JWT
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -19,8 +18,7 @@ import { ConversationsService } from '../services/conversations.service';
 import { WsJwtGuard } from '../../auth/guards/ws-jwt.guard';
 import { CreateMessageDto } from '../dto/create-message.dto';
 import { UserPayload } from 'src/backendTypes';
-
-@WebSocketGateway({
+@WebSocketGateway(4001, {
   cors: {
     origin: '*', // In production, restrict this to your frontend domain
   },
@@ -41,8 +39,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handleConnection(client: Socket) {
     try {
       // Extract token from handshake
-      const token = client.handshake.auth.token.split(' ')[1];
+      const token = client.handshake.auth?.token
+        ? client.handshake.auth.token.split(' ')[1]
+        : null;
       if (!token) {
+        console.error('Token is undefined');
         client.disconnect();
         return;
       }
@@ -104,7 +105,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     try {
       const { content, conversationId } = createMessageDto;
-      const token = client.handshake.auth.token?.split(' ')[1];
+      const token = client.handshake.auth?.token?.split(' ')[1];
       if (!token) {
         throw new Error('Token is undefined');
       }
@@ -161,7 +162,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { messageId: string },
   ) {
     try {
-      const token = client.handshake.auth.token.split(' ')[1];
+      const token = client.handshake.auth?.token?.split(' ')[1];
       if (!token) {
         throw new Error('Token is undefined');
       }
@@ -200,7 +201,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { conversationId: string; isTyping: boolean },
   ) {
     try {
-      const token = client.handshake.auth.token.split(' ')[1];
+      const token = client.handshake.auth?.token?.split(' ')[1];
       if (!token) {
         throw new Error('Token is undefined');
       }

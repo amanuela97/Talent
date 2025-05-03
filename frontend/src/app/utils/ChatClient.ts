@@ -1,111 +1,63 @@
 // Example of how to connect to the WebSocket service from frontend
 import { io, Socket } from 'socket.io-client';
-
-export type SendMessageResponse = {
-  id: string;
-  content: string;
-  createdAt: string;
-  sender: {
-    userId: string;
-    name: string;
-    profilePicture: string | null;
-  };
-  error?: string; // Optional error property
-};
+import {
+  NewMessageCallback,
+  MessageReadCallback,
+  TypingCallback,
+} from '@/components/custom/chat/types';
 
 export class ChatService {
   private socket: Socket;
-  private accessToken: string;
 
-  constructor(baseUrl: string) {
-    this.accessToken = localStorage.getItem('accessToken') || '';
-    this.socket = io(baseUrl, {
-      auth: {
-        token: `Bearer ${this.accessToken}`,
-      },
+  constructor(socketUrl: string) {
+    this.socket = io(socketUrl, {
       autoConnect: false,
     });
-
-    this.setupEventListeners();
   }
 
-  connect() {
-    this.socket.connect();
+  connect(): void {
+    if (!this.socket.connected) {
+      this.socket.connect();
+    }
   }
 
-  disconnect() {
-    this.socket.disconnect();
+  disconnect(): void {
+    if (this.socket.connected) {
+      this.socket.disconnect();
+    }
   }
 
-  private setupEventListeners() {
-    this.socket.on('connect', () => {
-      console.log('Connected to chat server');
-    });
+  // --- Event Subscriptions ---
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from chat server');
-    });
-
-    this.socket.on('error', (error) => {
-      console.error('Socket error:', error);
-    });
+  onNewMessage(callback: NewMessageCallback): () => void {
+    const event = 'newMessage';
+    this.socket.on(event, callback);
+    return () => this.socket.off(event, callback);
   }
 
-  sendMessage(conversationId: string, content: string) {
-    return new Promise((resolve, reject) => {
-      this.socket.emit(
-        'sendMessage',
-        { conversationId, content },
-        (response: SendMessageResponse) => {
-          if (response.error) {
-            reject(response.error);
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
+  onMessageRead(callback: MessageReadCallback): () => void {
+    const event = 'messageRead';
+    this.socket.on(event, callback);
+    return () => this.socket.off(event, callback);
   }
 
-  markMessageAsRead(messageId: string) {
+  onUserTyping(callback: TypingCallback): () => void {
+    const event = 'userTyping';
+    this.socket.on(event, callback);
+    return () => this.socket.off(event, callback);
+  }
+
+  // --- Emitting Events ---
+
+  async sendMessage(conversationId: string, content: string): Promise<void> {
+    this.socket.emit('sendMessage', { conversationId, content });
+  }
+
+  markMessageAsRead(messageId: string): void {
     this.socket.emit('markMessageRead', { messageId });
   }
 
-  onNewMessage(callback: (message: SendMessageResponse) => void) {
-    this.socket.on('newMessage', callback);
-    return () => this.socket.off('newMessage', callback);
-  }
-
-  onMessageRead(
-    callback: (data: {
-      messageId: string;
-      userId: string;
-      readAt: string;
-    }) => void
-  ) {
-    this.socket.on('messageRead', callback);
-    return () => this.socket.off('messageRead', callback);
-  }
-
-  sendTypingIndicator(conversationId: string, isTyping: boolean) {
+  sendTypingIndicator(conversationId: string, isTyping: boolean): void {
     this.socket.emit('typing', { conversationId, isTyping });
-  }
-
-  onUserTyping(
-    callback: (data: {
-      userId: string;
-      conversationId: string;
-      isTyping: boolean;
-    }) => void
-  ) {
-    this.socket.on('userTyping', callback);
-    return () => this.socket.off('userTyping', callback);
-  }
-
-  updateToken(token: string) {
-    this.accessToken = token;
-    if (this.socket.connected) {
-      this.socket.disconnect().connect();
-    }
   }
 }

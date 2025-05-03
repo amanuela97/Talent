@@ -1,35 +1,31 @@
 import NextAuth from 'next-auth';
-import { User } from '@prisma/client';
+import { User as UserType } from '@prisma/client';
+import NextAuth from 'next-auth';
 
 declare module 'next-auth' {
   interface Session {
-    user: {
-      id: number;
-      email: string;
-      name: string;
-    } & Omit<User, 'passwordHash'>;
+    user: UserType;
+    accessToken: string;
+    refreshToken: string;
+    error?: string;
+  }
 
-    backendTokens: {
-      accessToken: string;
-      refreshToken: string;
-      expiresIn: number;
-    };
+  // Define what gets returned from authorize in CredentialsProvider
+  interface User {
+    id: string;
+    accessToken: string;
+    refreshToken: string;
+    user: UserType;
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
-    user: {
-      id: number;
-      email: string;
-      name: string;
-    } & Omit<User, 'passwordHash'>;
-
-    backendTokens: {
-      accessToken: string;
-      refreshToken: string;
-      expiresIn: number;
-    };
+    accessToken: string;
+    refreshToken: string;
+    accessTokenExpires: number;
+    user: UserType;
+    error?: string;
   }
 }
 

@@ -6,6 +6,8 @@ import { ChatGateway } from './gateways/chat.gateway';
 import { ConversationsService } from './services/conversations.service';
 import { MessagesService } from './services/messages.service';
 import { PrismaService } from '../prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 @Module({
   controllers: [
@@ -18,6 +20,8 @@ import { PrismaService } from '../prisma.service';
     MessagesService,
     ChatGateway,
     PrismaService,
+    JwtService,
+    ConfigService,
   ],
   exports: [ConversationsService, MessagesService],
 })

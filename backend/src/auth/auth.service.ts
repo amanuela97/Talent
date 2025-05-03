@@ -18,9 +18,8 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
-  private readonly ACCESS_TOKEN_EXPIRES = '4h';
+  private readonly ACCESS_TOKEN_EXPIRES = '60s';
   private readonly REFRESH_TOKEN_EXPIRES = '7d';
-  private readonly EXPIRE_TIME = 60 * 1000; // 60 seconds
   private readonly RESET_TOKEN_EXPIRES = 15 * 60 * 1000; // 15 minutes in milliseconds
   private readonly SALT_ROUNDS = 10;
   private transporter: Transporter;
@@ -362,8 +361,17 @@ export class AuthService {
     return result;
   }
 
-  async refreshToken(user: UserPayload): Promise<TokenResponse> {
-    return this.generateTokens(user);
+  async refreshToken(refreshToken: string): Promise<TokenResponse> {
+    const jwtRefreshTokenKey =
+      this.configService.get<string>('jwtRefreshTokenKey');
+    const payload: UserPayload = this.jwtService.verify(refreshToken, {
+      secret: jwtRefreshTokenKey,
+    });
+
+    return this.generateTokens({
+      userId: payload.userId,
+      username: payload.username,
+    });
   }
 
   private async generateTokens(payload: UserPayload): Promise<TokenResponse> {
@@ -375,8 +383,6 @@ export class AuthService {
       throw new Error('JWT secret keys are not defined');
     }
 
-    const now = Date.now();
-
     return {
       accessToken: await this.jwtService.signAsync(payload, {
         expiresIn: this.ACCESS_TOKEN_EXPIRES,
@@ -386,7 +392,6 @@ export class AuthService {
         expiresIn: this.REFRESH_TOKEN_EXPIRES,
         secret: jwtRefreshTokenKey,
       }),
-      expiresIn: now + this.EXPIRE_TIME,
     };
   }
 }

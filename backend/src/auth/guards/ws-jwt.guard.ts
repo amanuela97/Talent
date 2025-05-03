@@ -1,4 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { WsException } from '@nestjs/websockets';
 import { Socket } from 'socket.io';
@@ -15,7 +16,10 @@ interface CustomSocket extends Socket {
 
 @Injectable()
 export class WsJwtGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private configService: ConfigService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
@@ -29,12 +33,22 @@ export class WsJwtGuard implements CanActivate {
         throw new WsException('Unauthorized');
       }
 
-      const decoded = this.jwtService.verify<UserPayload>(token);
+      const jwtSecretKey = this.configService.get<string>('jwtSecretKey');
+
+      if (!jwtSecretKey) {
+        throw new Error('JWT secret key is not defined');
+      }
+
+      const decoded = this.jwtService.verify<UserPayload>(token, {
+        secret: jwtSecretKey,
+      });
 
       client.data.user = {
         userId: decoded.userId,
         username: decoded.username,
       };
+
+      console.log('ws-jwt guard', decoded.userId);
 
       return Promise.resolve(true);
     } catch {

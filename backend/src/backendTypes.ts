@@ -13,7 +13,6 @@ export interface RequestWithUser extends Request {
 export interface TokenResponse {
   accessToken: string;
   refreshToken: string;
-  expiresIn: number;
 }
 
 export interface UserPayload {

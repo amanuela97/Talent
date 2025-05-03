@@ -351,7 +351,7 @@ export class TalentController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.talentService.remove(id, req?.user?.email);
+    return this.talentService.remove(id, req?.user?.userId);
   }
 
   @Post(':id/media')

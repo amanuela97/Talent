@@ -45,6 +45,10 @@ export class MessagesService {
   ): Promise<CreateMessageResponse> {
     const { content, conversationId, senderId } = createMessageDto;
 
+    if (!senderId) {
+      throw new ForbiddenException('Sender ID is required');
+    }
+
     // Check if user is part of the conversation
     const userInConversation = await this.prisma.userOnConversation.findUnique({
       where: {

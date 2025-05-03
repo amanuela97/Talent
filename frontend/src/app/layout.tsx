@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from './api/auth/[...nextauth]/route';
+import SessionProviderWrapper from '../components/custom/SessionProviderWrapper';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -17,17 +20,21 @@ export const metadata: Metadata = {
   description: 'Find performers for your next event',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <SessionProviderWrapper session={session}>
+          {children}
+        </SessionProviderWrapper>
       </body>
     </html>
   );
