@@ -10,8 +10,8 @@ import { isAxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { BackButton } from '@/components/custom/BackButton';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -44,15 +44,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="container flex justify-start py-4">
-        <Link
-          href="/login"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to login
-        </Link>
-      </div>
+      <BackButton route="/login" page="login" />
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-8">
@@ -60,16 +52,16 @@ export default function ForgotPasswordPage() {
             <Image
               src="/assets/talent-logo.png"
               alt="Talent Logo"
-              width={150}
-              height={60}
+              width={100}
+              height={50}
               priority
             />
             <h1 className="text-2xl font-bold tracking-tight">
               Reset your password
             </h1>
             <p className="text-sm text-gray-500 text-center">
-              Enter your email address and we'll send you a link to reset your
-              password
+              Enter your email address and we&apos;ll send you a link to reset
+              your password
             </p>
           </div>
 
@@ -108,7 +100,7 @@ export default function ForgotPasswordPage() {
               <div className="flex justify-center">
                 <Button
                   type="submit"
-                  className="min-w-[80px] max-w-[120px] w-[200px] bg-orange-500 hover:bg-orange-600"
+                  className="min-w-[80px] max-w-[120px] w-[200px] bg-orange-500 hover:bg-orange-600 cursor-pointer"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Sending...' : 'Send reset link'}

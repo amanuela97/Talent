@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft } from 'lucide-react';
 import GoogleButton from 'react-google-button';
+import { BackButton } from '@/components/custom/BackButton';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -39,16 +39,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="container flex justify-start py-4">
-        <Link
-          href="/"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to home
-        </Link>
-      </div>
-
+      <BackButton route="/" page="home" />
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-8">
           <div className="flex flex-col items-center space-y-4">
@@ -112,7 +103,7 @@ export default function LoginPage() {
               <div className="flex justify-center">
                 <Button
                   type="submit"
-                  className="min-w-[80px] max-w-[120px] w-[30%] bg-orange-500 hover:bg-orange-600"
+                  className="min-w-[80px] max-w-[120px] w-[30%] bg-orange-500 hover:bg-orange-600 cursor-pointer"
                 >
                   Log in
                 </Button>

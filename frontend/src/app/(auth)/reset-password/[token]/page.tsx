@@ -4,14 +4,14 @@ import type React from 'react';
 import { useRouter } from 'next/navigation';
 import { useState, use } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import axios from '@/app/utils/axios';
 import { isAxiosError } from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, CheckCircle2, Lock } from 'lucide-react';
+import { CheckCircle2, Lock } from 'lucide-react';
+import { BackButton } from '@/components/custom/BackButton';
 
 type Props = {
   params: Promise<{ token: string }>;
@@ -19,7 +19,6 @@ type Props = {
 
 export default function ResetPasswordPage({ params }: Props) {
   const { token } = use(params);
-
   const router = useRouter();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -59,15 +58,7 @@ export default function ResetPasswordPage({ params }: Props) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="container flex justify-start py-4">
-        <Link
-          href="/login"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to login
-        </Link>
-      </div>
+      <BackButton route="/login" page="login" />
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-md space-y-8">
@@ -75,8 +66,8 @@ export default function ResetPasswordPage({ params }: Props) {
             <Image
               src="/assets/talent-logo.png"
               alt="Talent Logo"
-              width={150}
-              height={60}
+              width={100}
+              height={50}
               priority
             />
             <div className="rounded-full bg-orange-100 p-3">

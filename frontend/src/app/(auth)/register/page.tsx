@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft } from 'lucide-react';
 import GoogleButton from 'react-google-button';
+import { BackButton } from '@/components/custom/BackButton';
 
 export default function Register() {
   const [firstName, setFirstName] = useState('');
@@ -49,15 +49,7 @@ export default function Register() {
   return (
     <ClientOnly>
       <div className="min-h-screen flex flex-col">
-        <div className="container flex justify-start py-4">
-          <Link
-            href="/"
-            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to home
-          </Link>
-        </div>
+        <BackButton route="/" page="home" />
 
         <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
           <div className="w-full max-w-md space-y-8">
@@ -151,7 +143,7 @@ export default function Register() {
                 </div>
                 <div className="flex justify-center">
                   <Button
-                    className="min-w-[120px] max-w-[160px] w-[40%] bg-orange-500 hover:bg-orange-600"
+                    className="min-w-[120px] max-w-[160px] w-[40%] bg-orange-500 hover:bg-orange-600 cursor-pointer"
                     type="submit"
                   >
                     Create account

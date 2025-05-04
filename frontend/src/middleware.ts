@@ -16,7 +16,9 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Check if the path is in the auth group (public)
-  const isPublicRoute = publicRoutes.some((route) => path === route);
+  const isPublicRoute = publicRoutes.some(
+    (route) => path === route || path.startsWith(`${route}/`)
+  );
 
   // Get the token (session)
   const session = await getToken({
