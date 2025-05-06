@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { CreateTalentDto } from './dto/create-talent.dto';
@@ -446,84 +447,99 @@ export class TalentService {
    * Find a talent profile by ID
    */
   async findOne(talentId: string) {
-    const talent = await this.prisma.safeQuery(() =>
-      this.prisma.talent.findUnique({
-        where: { talentId },
-        include: {
-          media: true,
-          user: {
-            select: {
-              name: true,
-              profilePicture: true,
-              email: true,
-              createdAt: true,
-            },
-          },
-          reviews: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  profilePicture: true,
-                },
+    try {
+      const talent = await this.prisma.safeQuery(() =>
+        this.prisma.talent.findUnique({
+          where: { talentId },
+          include: {
+            media: true,
+            user: {
+              select: {
+                name: true,
+                profilePicture: true,
+                email: true,
+                createdAt: true,
               },
-              replies: true,
             },
-            orderBy: {
-              createdAt: 'desc',
+            reviews: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    profilePicture: true,
+                  },
+                },
+                replies: true,
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
             },
           },
-        },
-      }),
-    );
+        }),
+      );
 
-    if (!talent) {
-      throw new NotFoundException(`Talent with ID ${talentId} not found`);
+      if (!talent) {
+        throw new NotFoundException(`Talent with ID ${talentId} not found`);
+      }
+
+      return talent;
+    } catch (error) {
+      // If the error is already a NotFoundException, rethrow it
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      // Log the original error
+      console.error(`Error fetching talent with ID ${talentId}`, error);
+
+      // Throw a generic error
+      throw new InternalServerErrorException('Error retrieving talent profile');
     }
-
-    return talent;
   }
 
   /**
    * Find a talent profile by user ID
    */
   async findByUserId(userId: string) {
-    const talent = await this.prisma.safeQuery(() =>
-      this.prisma.talent.findUnique({
-        where: { talentId: userId }, // In your schema, talentId is the userId
-        include: {
-          media: true,
-          user: {
-            select: {
-              name: true,
-              profilePicture: true,
-              email: true,
-              createdAt: true,
-            },
-          },
-          reviews: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  profilePicture: true,
-                },
+    try {
+      const talent = await this.prisma.safeQuery(() =>
+        this.prisma.talent.findUnique({
+          where: { talentId: userId }, // In your schema, talentId is the same as userId
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+                profilePicture: true,
               },
-              replies: true,
             },
-            orderBy: {
-              createdAt: 'desc',
+            // Only include basic details for status checks
+            // This reduces the query complexity
+            media: {
+              take: 1, // Just check if there's any media
+              select: {
+                id: true,
+              },
             },
           },
-        },
-      }),
-    );
+        }),
+      );
 
-    if (!talent) {
-      throw new NotFoundException(`Talent with user ID ${userId} not found`);
+      if (!talent) {
+        throw new NotFoundException(`Talent with user ID ${userId} not found`);
+      }
+
+      return talent;
+    } catch (error) {
+      // If the error is already a NotFoundException, rethrow it
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      console.error(`Error fetching talent with user ID ${userId}`, error);
+      throw new InternalServerErrorException('Error retrieving talent profile');
     }
-
-    return talent;
   }
 
   /**
