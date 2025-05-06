@@ -58,7 +58,7 @@ export default function Dashboard() {
     <ClientOnly>
       <div className="min-h-screen flex flex-col">
         {/* Header */}
-        <header className="border-b sticky top-0 z-10 bg-white">
+        {/* <header className="border-b sticky top-0 z-10 bg-white">
           <div className="container flex h-16 items-center justify-between px-4">
             <div className="flex items-center gap-4">
               <Link href="/" className="flex items-center gap-2">
@@ -97,7 +97,8 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </header>
+        </header> */}
+
 
         <div className="flex flex-1">
           {/* Sidebar */}
