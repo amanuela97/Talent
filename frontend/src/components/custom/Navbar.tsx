@@ -31,6 +31,10 @@ import {
     BarChart,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useAppStore } from '@/app/store/store';
+import { useSession } from 'next-auth/react';
+import { handleSignOut } from '@/app/utils/helper';
+import Loader from '@/components/custom/Loader';
 
 // This would come from your auth context/provider
 type UserRole = "user" | "talent" | "admin" | null
@@ -65,6 +69,27 @@ export function Navbar({ userRole = null, userName = "", userImage = "" }: Navba
         { href: "/pricing", label: "Pricing" },
         { href: "/about", label: "About Us" },
     ]
+
+    const { data: session, status } = useSession();
+    const user = useAppStore((state) => state.user);
+    const setUser = useAppStore((state) => state.setUser);
+    const clearUser = useAppStore((state) => state.clearUser);
+
+    useEffect(() => {
+        if (status === 'authenticated' && session?.user) {
+            setUser({ ...session.user });
+        }
+    }, [session, status, setUser]);
+
+    // Show loading while checking authentication
+    if (status === 'loading' || !user) {
+        return <Loader />;
+    }
+
+    const signOut = async () => {
+        handleSignOut();
+        clearUser();
+    };
 
     return (
         <header
@@ -124,13 +149,14 @@ export function Navbar({ userRole = null, userName = "", userImage = "" }: Navba
                                     <Button variant="ghost" className="flex items-center gap-2 pl-1 pr-0">
                                         <div className="relative h-8 w-8 rounded-full overflow-hidden">
                                             <Image
-                                                src={userImage || "/placeholder.svg?height=32&width=32"}
-                                                alt={userName || "User"}
+                                                src={user.profilePicture ||
+                                                    '/placeholder.svg?height=32&width=32'}
+                                                alt="User Avatar"
                                                 fill
                                                 className="object-cover"
                                             />
                                         </div>
-                                        <span className="hidden sm:inline-block font-medium text-sm">{userName}</span>
+                                        <span className="hidden sm:inline-block font-medium text-sm">{user.name}</span>
                                         <ChevronDown className="h-4 w-4 text-gray-500" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -138,14 +164,15 @@ export function Navbar({ userRole = null, userName = "", userImage = "" }: Navba
                                     <div className="flex items-center gap-2 p-2">
                                         <div className="relative h-10 w-10 rounded-full overflow-hidden">
                                             <Image
-                                                src={userImage || "/placeholder.svg?height=40&width=40"}
-                                                alt={userName || "User"}
+                                                src={user.profilePicture ||
+                                                    '/placeholder.svg?height=32&width=32'}
+                                                alt="User Avatar"
                                                 fill
                                                 className="object-cover"
                                             />
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="font-medium text-sm">{userName || "User"}</span>
+                                            <span className="font-medium text-sm">{user.name}</span>
                                             {userRole === "talent" && (
                                                 <div className="flex items-center">
                                                     <Star className="h-3 w-3 text-gray-400" />
@@ -286,7 +313,7 @@ export function Navbar({ userRole = null, userName = "", userImage = "" }: Navba
                                     </DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem asChild>
-                                        <Link href="/logout" className="flex items-center cursor-pointer text-red-500 hover:text-red-600">
+                                        <Link href='#' onClick={() => signOut()} className="flex items-center cursor-pointer text-red-500 hover:text-red-600">
                                             <LogOut className="mr-2 h-4 w-4" />
                                             <span>Log Out</span>
                                         </Link>
