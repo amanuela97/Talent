@@ -5,11 +5,12 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { CreateTalentDto } from './dto/create-talent.dto';
 import { UpdateTalentDto } from './dto/update-talent.dto';
 import { PrismaService } from 'src/prisma.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
-import { MediaType, Talent, Role, Media } from '@prisma/client';
+import { MediaType, Talent, Role, Media, Prisma } from '@prisma/client';
 
 interface MediaFiles {
   images: Express.Multer.File[];
@@ -19,6 +20,41 @@ interface MediaFiles {
 
 @Injectable()
 export class TalentService {
+  /**
+   * Remove multiple media items by their IDs
+   */
+  private async removeMultipleMedia(mediaIds: string[]): Promise<void> {
+    for (const mediaId of mediaIds) {
+      await this.removeMedia(mediaId);
+    }
+  }
+  private async uploadAndCreateMedia(
+    talentId: string,
+    file: Express.Multer.File,
+    mediaType: MediaType,
+  ): Promise<void> {
+    // Upload file to Cloudinary
+    const uploadResult = await this.cloudinaryService.uploadSingleFile(
+      file,
+      mediaType,
+      talentId,
+    );
+
+    if (!uploadResult || !uploadResult.url) {
+      throw new BadRequestException('Failed to upload file to Cloudinary');
+    }
+
+    // Create media record in the database
+    await this.prisma.media.create({
+      data: {
+        type: mediaType,
+        url: uploadResult.url,
+        publicId: uploadResult.publicId,
+        description: '',
+        talentId,
+      },
+    });
+  }
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
@@ -30,170 +66,201 @@ export class TalentService {
   async createWithMedia(
     userId: string,
     createTalentDto: CreateTalentDto,
-    mediaFiles: MediaFiles,
-  ): Promise<Talent & { media: Media[] }> {
-    try {
-      // Check if user exists
-      const user = await this.prisma.safeQuery(() =>
-        this.prisma.user.findUnique({
-          where: { userId },
-        }),
-      );
+    files: {
+      images: Express.Multer.File[];
+      videos: Express.Multer.File[];
+      audios: Express.Multer.File[];
+    },
+  ) {
+    // Check if talent already exists for this user
+    const existingTalent = await this.prisma.talent.findUnique({
+      where: { talentId: userId },
+    });
 
-      if (!user) {
-        throw new NotFoundException(`User with ID ${userId} not found`);
-      }
-
-      // Check if user already has a talent profile
-      const existingTalent = await this.prisma.safeQuery(() =>
-        this.prisma.talent.findUnique({
-          where: { talentId: userId },
-        }),
-      );
-
-      if (existingTalent) {
-        throw new ConflictException(`User already has a talent profile`);
-      }
-
-      // Create talent profile with the user ID as talent ID
-      const talent = await this.prisma.safeQuery(() =>
-        this.prisma.talent.create({
-          data: {
-            talentId: userId,
-            bio: createTalentDto.bio,
-            services: createTalentDto.services,
-            hourlyRate: createTalentDto.hourlyRate,
-            location: createTalentDto.location,
-            availability: createTalentDto.availability,
-            socialLinks: createTalentDto.socialLinks || {},
-          },
-          include: {
-            media: true,
-          },
-        }),
-      );
-
-      // Update user role to TALENT
-      await this.prisma.safeQuery(() =>
-        this.prisma.user.update({
-          where: { userId },
-          data: { role: Role.TALENT },
-        }),
-      );
-
-      // Upload media files if any are provided
-      let uploadedMedia: Media[] = [];
-      if (
-        mediaFiles.images.length > 0 ||
-        mediaFiles.videos.length > 0 ||
-        mediaFiles.audios.length > 0
-      ) {
-        uploadedMedia = await this.processAndUploadMedia(userId, mediaFiles);
-      }
-
-      return {
-        ...talent,
-        media: uploadedMedia,
-      };
-    } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof ConflictException
-      ) {
-        throw error;
-      }
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new BadRequestException(
-        `Failed to create talent profile: ${errorMessage}`,
-      );
+    if (existingTalent) {
+      throw new ConflictException('User already has a talent profile');
     }
+
+    // Create talent profile first
+    const talent = await this.prisma.talent.create({
+      data: {
+        talentId: userId,
+        firsName: createTalentDto.firsName,
+        lastName: createTalentDto.lastName,
+        generalCategory: createTalentDto.generalCategory,
+        specificCategory: createTalentDto.specificCategory,
+        ServiceName: createTalentDto.ServiceName,
+        address: createTalentDto.address,
+        phoneNumber: createTalentDto.phoneNumber,
+        status: createTalentDto.status, // Let Prisma use the default
+        isEmailVerified: createTalentDto.isEmailVerified, // Prisma will use default if undefined
+        verificationToken:
+          createTalentDto.verificationToken || crypto.randomUUID(),
+        // Optional fields - let Prisma use defaults if undefined
+        languagesSpoken: createTalentDto.languagesSpoken,
+        bio: createTalentDto.bio,
+        services: createTalentDto.services,
+        hourlyRate: createTalentDto.hourlyRate,
+        city: createTalentDto.city,
+        availability: createTalentDto.availability,
+        socialLinks: createTalentDto.socialLinks,
+        isOnline: createTalentDto.isOnline, // Prisma will use default if undefined
+      },
+    });
+
+    // Process and upload media files if any
+    if (
+      files.images.length > 0 ||
+      files.videos.length > 0 ||
+      files.audios.length > 0
+    ) {
+      const mediaUploads: Promise<void>[] = [];
+
+      // Process images
+      for (const file of files.images) {
+        mediaUploads.push(
+          this.uploadAndCreateMedia(talent.talentId, file, MediaType.IMAGE),
+        );
+      }
+
+      // Process videos
+      for (const file of files.videos) {
+        mediaUploads.push(
+          this.uploadAndCreateMedia(talent.talentId, file, MediaType.VIDEO),
+        );
+      }
+
+      // Process audios
+      for (const file of files.audios) {
+        mediaUploads.push(
+          this.uploadAndCreateMedia(talent.talentId, file, MediaType.AUDIO),
+        );
+      }
+
+      await Promise.all(mediaUploads);
+    }
+
+    // Return the created talent with media
+    return this.findOne(talent.talentId);
   }
 
   /**
    * Update a talent profile with optional media files
    */
   async updateWithMedia(
-    talentId: string,
+    id: string,
     updateTalentDto: UpdateTalentDto,
-    mediaFiles: MediaFiles | null,
+    files: {
+      images: Express.Multer.File[];
+      videos: Express.Multer.File[];
+      audios: Express.Multer.File[];
+    } | null,
   ) {
     // Check if talent exists
-    const existingTalent = await this.prisma.safeQuery(() =>
-      this.prisma.talent.findUnique({
-        where: { talentId },
-        include: { media: true },
-      }),
-    );
+    const talent = await this.prisma.talent.findUnique({
+      where: { talentId: id },
+    });
 
-    if (!existingTalent) {
-      throw new NotFoundException(`Talent with ID ${talentId} not found`);
-    }
-
-    // First, handle media removals if any
-    if (updateTalentDto.mediasToRemove?.length) {
-      // Delete from Cloudinary first
-      for (const media of updateTalentDto.mediasToRemove) {
-        if (media.publicId) {
-          await this.cloudinaryService.deleteFile(media.publicId);
-        }
-      }
-
-      // Then delete from database
-      await this.prisma.safeQuery(() =>
-        this.prisma.media.deleteMany({
-          where: {
-            id: {
-              in: (updateTalentDto.mediasToRemove ?? []).map(
-                (media) => media.id,
-              ),
-            },
-          },
-        }),
-      );
+    if (!talent) {
+      throw new NotFoundException(`Talent with ID ${id} not found`);
     }
 
     // Update talent profile
-    const updatedTalent = await this.prisma.safeQuery(() =>
-      this.prisma.talent.update({
-        where: { talentId },
-        data: {
-          bio:
-            updateTalentDto.bio !== undefined ? updateTalentDto.bio : undefined,
-          services:
-            updateTalentDto.services !== undefined
-              ? updateTalentDto.services
-              : undefined,
-          hourlyRate:
-            updateTalentDto.hourlyRate !== undefined
-              ? updateTalentDto.hourlyRate
-              : undefined,
-          location:
-            updateTalentDto.location !== undefined
-              ? updateTalentDto.location
-              : undefined,
-          availability:
-            updateTalentDto.availability !== undefined
-              ? updateTalentDto.availability
-              : undefined,
-          socialLinks:
-            updateTalentDto.socialLinks !== undefined
-              ? updateTalentDto.socialLinks
-              : undefined,
-        },
-        include: {
-          media: true,
-        },
-      }),
-    );
+    const updateData: Prisma.TalentUpdateInput = {};
 
-    // If media files provided, upload them
-    if (mediaFiles) {
-      const newMedia = await this.processAndUploadMedia(talentId, mediaFiles);
-      updatedTalent.media = [...updatedTalent.media, ...newMedia];
+    if (updateTalentDto.firsName !== undefined)
+      updateData.firsName = updateTalentDto.firsName;
+
+    if (updateTalentDto.lastName !== undefined)
+      updateData.lastName = updateTalentDto.lastName;
+
+    if (updateTalentDto.generalCategory !== undefined)
+      updateData.generalCategory = updateTalentDto.generalCategory;
+
+    if (updateTalentDto.specificCategory !== undefined)
+      updateData.specificCategory = updateTalentDto.specificCategory;
+
+    if (updateTalentDto.ServiceName !== undefined)
+      updateData.ServiceName = updateTalentDto.ServiceName;
+
+    if (updateTalentDto.address !== undefined)
+      updateData.address = updateTalentDto.address;
+
+    if (updateTalentDto.phoneNumber !== undefined)
+      updateData.phoneNumber = updateTalentDto.phoneNumber;
+
+    if (updateTalentDto.status !== undefined)
+      if (typeof updateTalentDto.status === 'string') {
+        updateData.status = updateTalentDto.status;
+      }
+
+    if (updateTalentDto.isEmailVerified !== undefined)
+      updateData.isEmailVerified = updateTalentDto.isEmailVerified;
+
+    if (updateTalentDto.verificationToken !== undefined)
+      updateData.verificationToken = updateTalentDto.verificationToken;
+
+    if (updateTalentDto.isOnline !== undefined)
+      updateData.isOnline = updateTalentDto.isOnline;
+
+    if (updateTalentDto.languagesSpoken !== undefined)
+      updateData.languagesSpoken = updateTalentDto.languagesSpoken;
+
+    if (updateTalentDto.bio !== undefined) updateData.bio = updateTalentDto.bio;
+
+    if (updateTalentDto.services !== undefined)
+      updateData.services = updateTalentDto.services;
+
+    if (updateTalentDto.hourlyRate !== undefined)
+      updateData.hourlyRate = updateTalentDto.hourlyRate;
+
+    if (updateTalentDto.city !== undefined)
+      updateData.city = updateTalentDto.city;
+
+    if (updateTalentDto.availability !== undefined)
+      updateData.availability = updateTalentDto.availability;
+
+    if (updateTalentDto.socialLinks !== undefined)
+      updateData.socialLinks = updateTalentDto.socialLinks;
+
+    // Remove media if specified
+    if (
+      updateTalentDto.mediasToRemove &&
+      updateTalentDto.mediasToRemove.length > 0
+    ) {
+      await this.removeMultipleMedia(updateTalentDto.mediasToRemove);
     }
 
-    return updatedTalent;
+    // Update talent profile
+    await this.prisma.talent.update({
+      where: { talentId: id },
+      data: updateData,
+    });
+
+    // Process and upload new media files if any
+    if (files) {
+      const mediaUploads: Promise<void>[] = [];
+
+      // Process images
+      for (const file of files.images) {
+        mediaUploads.push(this.uploadAndCreateMedia(id, file, MediaType.IMAGE));
+      }
+
+      // Process videos
+      for (const file of files.videos) {
+        mediaUploads.push(this.uploadAndCreateMedia(id, file, MediaType.VIDEO));
+      }
+
+      // Process audios
+      for (const file of files.audios) {
+        mediaUploads.push(this.uploadAndCreateMedia(id, file, MediaType.AUDIO));
+      }
+
+      await Promise.all(mediaUploads);
+    }
+
+    // Return the updated talent with media
+    return this.findOne(id);
   }
 
   /**
@@ -301,7 +368,7 @@ export class TalentService {
     services?: string[];
     minHourlyRate?: number;
     maxHourlyRate?: number;
-    location?: string;
+    city?: string; // Changed from location to city
     minRating?: number;
   }) {
     const {
@@ -310,7 +377,7 @@ export class TalentService {
       services,
       minHourlyRate,
       maxHourlyRate,
-      location,
+      city, // Changed from location to city
       minRating,
     } = params;
 
@@ -318,7 +385,7 @@ export class TalentService {
     const where: {
       services?: { hasSome: string[] };
       hourlyRate?: { gte?: number; lte?: number };
-      location?: { contains: string; mode: 'insensitive' };
+      city?: { contains: string; mode: 'insensitive' }; // Changed from location to city
       rating?: { gte: number };
     } = {};
 
@@ -332,8 +399,9 @@ export class TalentService {
       if (maxHourlyRate !== undefined) where.hourlyRate.lte = maxHourlyRate;
     }
 
-    if (location) {
-      where.location = { contains: location, mode: 'insensitive' };
+    if (city) {
+      // Changed from location to city
+      where.city = { contains: city, mode: 'insensitive' }; // Changed from location to city
     }
 
     if (minRating !== undefined) {
@@ -417,6 +485,48 @@ export class TalentService {
   }
 
   /**
+   * Find a talent profile by user ID
+   */
+  async findByUserId(userId: string) {
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId: userId }, // In your schema, talentId is the userId
+        include: {
+          media: true,
+          user: {
+            select: {
+              name: true,
+              profilePicture: true,
+              email: true,
+              createdAt: true,
+            },
+          },
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  profilePicture: true,
+                },
+              },
+              replies: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+        },
+      }),
+    );
+
+    if (!talent) {
+      throw new NotFoundException(`Talent with user ID ${userId} not found`);
+    }
+
+    return talent;
+  }
+
+  /**
    * Update a talent profile
    */
   async update(talentId: string, updateTalentDto: UpdateTalentDto) {
@@ -439,7 +549,7 @@ export class TalentService {
           bio: updateTalentDto.bio,
           services: updateTalentDto.services,
           hourlyRate: updateTalentDto.hourlyRate,
-          location: updateTalentDto.location,
+          city: updateTalentDto.city, // Changed from location to city
           availability: updateTalentDto.availability,
           socialLinks: updateTalentDto.socialLinks,
         },
@@ -588,5 +698,26 @@ export class TalentService {
     );
 
     return { success: true, message: 'Media deleted successfully' };
+  }
+
+  /**
+   * Verify email using a token
+   */
+  async verifyEmail(token: string) {
+    const talent = await this.prisma.talent.findFirst({
+      where: { verificationToken: token },
+    });
+
+    if (!talent) {
+      throw new NotFoundException('Invalid verification token');
+    }
+
+    // Update the talent record
+    return this.prisma.talent.update({
+      where: { talentId: talent.talentId },
+      data: {
+        isEmailVerified: true,
+      },
+    });
   }
 }

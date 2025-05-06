@@ -8,6 +8,8 @@ import {
   Req,
   UnauthorizedException,
   ValidationPipe,
+  BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { CreateUserDto } from '../user/dto/create-user.dto';
@@ -21,8 +23,11 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { ConfigService } from '@nestjs/config';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset.password.dto';
+import { MailService } from '../mail/mail.service';
+import { JwtGuard } from '../auth/guards/jwt.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -30,6 +35,8 @@ export class AuthController {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   @Post('register')
@@ -170,5 +177,84 @@ export class AuthController {
     return res.json({
       message: 'Successfully logged out',
     });
+  }
+
+  @Post('send-verification-email')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send a verification email to talent user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification email sent successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async sendVerificationEmail(
+    @Body()
+    emailData: {
+      email: string;
+      verificationToken: string;
+      name: string;
+    },
+  ) {
+    try {
+      const { email, verificationToken, name } = emailData;
+      const frontendUrl: string =
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:3000';
+      const verificationLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
+
+      // Send the email
+      await this.mailService.sendVerificationEmail(
+        email,
+        name,
+        verificationLink,
+      );
+
+      return { success: true, message: 'Verification email sent successfully' };
+    } catch {
+      throw new BadRequestException('Failed to send verification email');
+    }
+  }
+
+  @Post('resend-verification-email')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Resend a verification email to talent user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification email resent successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async resendVerificationEmail(
+    @Body()
+    emailData: {
+      email: string;
+      verificationToken: string;
+      name: string;
+    },
+  ) {
+    try {
+      const { email, verificationToken, name } = emailData;
+
+      // Generate verification link
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        'http://localhost:3000';
+      const verificationLink = `${frontendUrl}/verify-email?token=${verificationToken}`;
+
+      // Send the email
+      await this.mailService.sendVerificationEmail(
+        email,
+        name,
+        verificationLink,
+      );
+
+      return {
+        success: true,
+        message: 'Verification email resent successfully',
+      };
+    } catch {
+      throw new BadRequestException('Failed to resend verification email');
+    }
   }
 }

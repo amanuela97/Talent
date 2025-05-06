@@ -2,6 +2,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -41,13 +42,27 @@ model Account {
   user              User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
+// Removed invalid type definition as it is not supported in Prisma schema
+
 model Talent {
   talentId            String     @id @default(uuid())
-  bio                 String
-  services            String[]
-  hourlyRate          Float
-  location            String
-  availability        Json
+  firsName            String     
+  lastName            String
+  generalCategory     String  
+  specificCategory    String
+  ServiceName         String
+  address             String
+  phoneNumber         String
+  bio                 String?  
+  status              TalentStatus@default(PENDING)
+  isEmailVerified     Boolean     @default(false)
+  verificationToken   String
+  services            String[]    @default([])
+  hourlyRate          Float?
+  city                String?
+  availability        Json?
+  isOnline            Boolean    @default(false)
+  languagesSpoken     String[]   @default([])
   rating              Float      @default(0)
   socialLinks         Json?
   createdAt           DateTime   @default(now())
@@ -56,6 +71,12 @@ model Talent {
   reviews             Review[]
   user                User       @relation(fields: [talentId], references: [userId])
   favoriteByCustomers Customer[] @relation("FavoriteTalents")
+}
+
+enum TalentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Media {

@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
@@ -52,7 +57,17 @@ export class PrismaService
   async safeQuery<T>(queryFn: () => Promise<T>): Promise<T> {
     try {
       return await queryFn();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      if (error instanceof Error) {
+        console.error(`Prisma query error: ${error.message}`, error.stack);
+      } else {
+        console.error('Prisma query error:', error);
+      }
+
       if (
         (error instanceof Error &&
           error.message.includes('prepared statement')) ||

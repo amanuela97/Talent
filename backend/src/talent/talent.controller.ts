@@ -1,3 +1,4 @@
+import { TalentStatus } from '@prisma/client';
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
@@ -40,6 +41,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthenticatedRequest } from 'src/backendTypes';
+import { isBoolean } from 'class-validator';
 
 @ApiTags('Talents')
 @Controller('talents')
@@ -74,13 +76,31 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
+        firsName: { type: 'string' },
+        lastName: { type: 'string' },
+        generalCategory: { type: 'string' },
+        specificCategory: { type: 'string' },
+        ServiceName: { type: 'string' },
+        address: { type: 'string' },
+        phoneNumber: { type: 'string' },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'APPROVED', 'REJECTED'],
+          default: 'PENDING',
+        },
+        isEmailVerified: { type: 'boolean', default: false },
+        verificationToken: { type: 'string' },
+        languagesSpoken: {
+          type: 'array',
+          items: { type: 'string' },
+        },
         bio: { type: 'string' },
         services: {
           type: 'array',
           items: { type: 'string' },
         },
         hourlyRate: { type: 'number' },
-        location: { type: 'string' },
+        city: { type: 'string' },
         availability: { type: 'object' },
         socialLinks: { type: 'object' },
         images: {
@@ -105,7 +125,16 @@ export class TalentController {
           },
         },
       },
-      required: ['bio', 'services', 'hourlyRate', 'location', 'availability'],
+      required: [
+        'firsName',
+        'lastName',
+        'generalCategory',
+        'specificCategory',
+        'ServiceName',
+        'address',
+        'phoneNumber',
+        'verificationToken',
+      ],
     },
   })
   async create(
@@ -119,21 +148,65 @@ export class TalentController {
     },
   ) {
     const talentData: CreateTalentDto = {
-      bio: createTalentDto.bio,
-      services: Array.isArray(createTalentDto.services)
+      firsName: createTalentDto.firsName,
+      lastName: createTalentDto.lastName,
+      generalCategory: createTalentDto.generalCategory,
+      specificCategory: createTalentDto.specificCategory,
+      ServiceName: createTalentDto.ServiceName,
+      address: createTalentDto.address,
+      phoneNumber: createTalentDto.phoneNumber,
+      status:
+        createTalentDto.status &&
+        Object.values(TalentStatus).includes(createTalentDto.status)
+          ? createTalentDto.status
+          : undefined, // Let Prisma use default
+      isEmailVerified: isBoolean(createTalentDto.isEmailVerified)
+        ? createTalentDto.isEmailVerified
+        : undefined, // Let Prisma use default
+      verificationToken:
+        createTalentDto.verificationToken || crypto.randomUUID(),
+    };
+
+    // Handle optional fields
+    if (createTalentDto.languagesSpoken) {
+      talentData.languagesSpoken = Array.isArray(
+        createTalentDto.languagesSpoken,
+      )
+        ? createTalentDto.languagesSpoken
+        : JSON.parse(createTalentDto.languagesSpoken || '[]');
+    }
+
+    if (createTalentDto.bio) {
+      talentData.bio = createTalentDto.bio;
+    }
+
+    if (createTalentDto.services) {
+      talentData.services = Array.isArray(createTalentDto.services)
         ? createTalentDto.services
-        : JSON.parse(createTalentDto.services || '[]'),
-      hourlyRate: parseFloat(createTalentDto.hourlyRate.toString()),
-      location: createTalentDto.location,
-      availability:
+        : JSON.parse(createTalentDto.services || '[]');
+    }
+
+    if (createTalentDto.hourlyRate) {
+      talentData.hourlyRate = parseFloat(createTalentDto.hourlyRate.toString());
+    }
+
+    if (createTalentDto.city) {
+      talentData.city = createTalentDto.city;
+    }
+
+    if (createTalentDto.availability) {
+      talentData.availability =
         typeof createTalentDto.availability === 'object'
           ? createTalentDto.availability
-          : JSON.parse(createTalentDto.availability || '{}'),
-      socialLinks:
+          : JSON.parse(createTalentDto.availability || '{}');
+    }
+
+    if (createTalentDto.socialLinks) {
+      talentData.socialLinks =
         typeof createTalentDto.socialLinks === 'object'
           ? createTalentDto.socialLinks
-          : JSON.parse(createTalentDto.socialLinks || '{}'),
-    };
+          : JSON.parse(createTalentDto.socialLinks || '{}');
+    }
 
     const mediaFiles = {
       images: files.images || [],
@@ -178,9 +251,9 @@ export class TalentController {
     description: 'Filter by maximum hourly rate',
   })
   @ApiQuery({
-    name: 'location',
+    name: 'city',
     required: false,
-    description: 'Filter by location',
+    description: 'Filter by city',
   })
   @ApiQuery({
     name: 'minRating',
@@ -194,7 +267,7 @@ export class TalentController {
     @Query('services') services?: string,
     @Query('minHourlyRate') minHourlyRate?: string,
     @Query('maxHourlyRate') maxHourlyRate?: string,
-    @Query('location') location?: string,
+    @Query('city') city?: string,
     @Query('minRating') minRating?: string,
   ) {
     return this.talentService.findAll({
@@ -203,7 +276,7 @@ export class TalentController {
       services: services ? services.split(',') : undefined,
       minHourlyRate: minHourlyRate ? parseFloat(minHourlyRate) : undefined,
       maxHourlyRate: maxHourlyRate ? parseFloat(maxHourlyRate) : undefined,
-      location,
+      city,
       minRating: minRating ? parseFloat(minRating) : undefined,
     });
   }
@@ -215,6 +288,15 @@ export class TalentController {
   @ApiResponse({ status: 404, description: 'Talent profile not found' })
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.talentService.findOne(id);
+  }
+
+  @Get('user/:userId')
+  @ApiOperation({ summary: 'Find talent by user ID' })
+  @ApiParam({ name: 'userId', type: 'string', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Talent found' })
+  @ApiResponse({ status: 404, description: 'Talent not found' })
+  async findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.talentService.findByUserId(userId);
   }
 
   @Patch(':id')
@@ -239,15 +321,37 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
+        firsName: { type: 'string' },
+        lastName: { type: 'string' },
+        generalCategory: { type: 'string' },
+        specificCategory: { type: 'string' },
+        ServiceName: { type: 'string' },
+        address: { type: 'string' },
+        phoneNumber: { type: 'string' },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'APPROVED', 'REJECTED'],
+        },
+        isEmailVerified: { type: 'boolean' },
+        verificationToken: { type: 'string' },
+        isOnline: { type: 'boolean' },
+        languagesSpoken: {
+          type: 'array',
+          items: { type: 'string' },
+        },
         bio: { type: 'string' },
         services: {
           type: 'array',
           items: { type: 'string' },
         },
         hourlyRate: { type: 'number' },
-        location: { type: 'string' },
+        city: { type: 'string' },
         availability: { type: 'object' },
         socialLinks: { type: 'object' },
+        mediasToRemove: {
+          type: 'array',
+          items: { type: 'string' },
+        },
         images: {
           type: 'array',
           items: {
@@ -284,7 +388,48 @@ export class TalentController {
   ) {
     const talentData: UpdateTalentDto = {};
 
-    if (updateTalentDto.bio) talentData.bio = updateTalentDto.bio;
+    if (updateTalentDto.firsName !== undefined)
+      talentData.firsName = updateTalentDto.firsName;
+
+    if (updateTalentDto.lastName !== undefined)
+      talentData.lastName = updateTalentDto.lastName;
+
+    if (updateTalentDto.generalCategory !== undefined)
+      talentData.generalCategory = updateTalentDto.generalCategory;
+
+    if (updateTalentDto.specificCategory !== undefined)
+      talentData.specificCategory = updateTalentDto.specificCategory;
+
+    if (updateTalentDto.ServiceName !== undefined)
+      talentData.ServiceName = updateTalentDto.ServiceName;
+
+    if (updateTalentDto.address !== undefined)
+      talentData.address = updateTalentDto.address;
+
+    if (updateTalentDto.phoneNumber !== undefined)
+      talentData.phoneNumber = updateTalentDto.phoneNumber;
+
+    if (updateTalentDto.status !== undefined)
+      talentData.status = updateTalentDto.status;
+
+    if (updateTalentDto.isEmailVerified !== undefined)
+      talentData.isEmailVerified = updateTalentDto.isEmailVerified;
+
+    if (updateTalentDto.verificationToken !== undefined)
+      talentData.verificationToken = updateTalentDto.verificationToken;
+
+    if (updateTalentDto.isOnline !== undefined)
+      talentData.isOnline = updateTalentDto.isOnline;
+
+    if (updateTalentDto.languagesSpoken !== undefined) {
+      talentData.languagesSpoken = Array.isArray(
+        updateTalentDto.languagesSpoken,
+      )
+        ? updateTalentDto.languagesSpoken
+        : JSON.parse(updateTalentDto.languagesSpoken);
+    }
+
+    if (updateTalentDto.bio !== undefined) talentData.bio = updateTalentDto.bio;
 
     if (updateTalentDto.services) {
       talentData.services = Array.isArray(updateTalentDto.services)
@@ -302,8 +447,9 @@ export class TalentController {
       talentData.hourlyRate = parseFloat(updateTalentDto.hourlyRate.toString());
     }
 
-    if (updateTalentDto.location)
-      talentData.location = updateTalentDto.location;
+    if (updateTalentDto.city) {
+      talentData.city = updateTalentDto.city;
+    }
 
     if (updateTalentDto.availability) {
       talentData.availability =
@@ -517,13 +663,30 @@ export class TalentController {
     });
   }
 
-  @Get('search/by-location')
-  @ApiOperation({ summary: 'Search talents by location' })
-  @ApiQuery({ name: 'location', required: true, description: 'Location name' })
-  @ApiResponse({ status: 200, description: 'List of talents in the location' })
-  async searchByLocation(@Query('location') location: string) {
+  @Get('search/by-city')
+  @ApiOperation({ summary: 'Search talents by city' })
+  @ApiQuery({ name: 'city', required: true, description: 'City name' })
+  @ApiResponse({ status: 200, description: 'List of talents in the city' })
+  async searchByCity(@Query('city') city: string) {
     return this.talentService.findAll({
-      location,
+      city,
     });
+  }
+
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verify talent email with token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        token: { type: 'string' },
+      },
+      required: ['token'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  @ApiResponse({ status: 404, description: 'Invalid verification token' })
+  async verifyEmail(@Body('token') token: string) {
+    return this.talentService.verifyEmail(token);
   }
 }

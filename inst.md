@@ -1,22 +1,125 @@
-# I need you to implement the following routes.
+🌍 Public-Facing Pages
+These are accessible to all users — both guests and logged-in users (talents or clients).
+| **Page** | **Purpose** | **Why Public?** |
+|----------|-------------|-----------------|
+| `/` | Landing/Home page | First point of interaction |
+| `/search` | Browse and search talents | Allow exploration without account |
+| `/talent/[id]` | Talent profile page | Showcase talents publicly |
+| `/become-a-talent` | Registration form for talents | Encourage sign-ups |
+| `/login` & `/register` | Auth pages | Needed to onboard users |
+| `/terms`, `/privacy`, `/faq` | Informational | Required for legal and trust reasons |
 
-- /forgot-password POST JSON body { email }
-- /reset-password POST JSON body { token, newPassword }
+🔐 Authenticated Pages
+These require login. Use route protection for both clients (users who book) and talents (users who perform) — possibly with role-based access.
 
-# Additional instrucions
+🧑‍🎤 Authenticated for Talents
+| **Page** | **Purpose** | **Role** |
+|----------|-------------|----------|
+| `/dashboard` | Overview page for talents | Talent |
+| `/dashboard/profile` | Edit profile (bio, images, etc.) | Talent |
+| `/dashboard/availability` | Manage available dates | Talent |
+| `/dashboard/bookings` | View booking requests | Talent |
+| `/dashboard/reviews` | See received ratings | Talent |
 
-- The forgot-password logic needs to check if the email in the body exists
-- If it does then create a unique token (use crypto-js togenerate token) linked to the user to generate a password reset url
-- Add a token expiration eg. 15min to ensure reset links sent to the users email becomes invalid after a set time (15min)
-- Allow only one active reset token at a time per user to prevent abuse.
-- Then send the reset url (http://localhost:3000/reset-password/{token}) to the users email using nodemailer
-- Then when /reset-password gets called, query the database by the reset token. return an error if invalid or expired.
-- Otherwise hash the new password and update it in the databse
-- clear the reset token and expiry time and send a success message to client.
-- const transporter = nodemailer.createTransport({
-  service: "gmail", // For example, using Gmail
-  auth: {
-  user: process.env.MAIL_USER, // Your email
-  pass: process.env.MAIL_PASS, // Your email password
-  },
-  });
+📆 Authenticated for Clients/Users
+| **Page** | **Purpose** | **Role** |
+|----------|-------------|----------|
+| `/talent/[id]/rate` | Leave a rating | Client (user who booked) |
+| `/bookings` | View bookings (optional) | Client |
+| `/messages` | Inbox or chat with talents | Client |
+
+🔁 Routes Mapping (Next.js ↔ NestJS)
+| Page/Component | Backend Endpoint | Method |
+|----------------------------------------|----------------------------------------------|--------|
+| `/search` | `GET /talent?location=&category=` | GET |
+| `/talent/[id]` | `GET /talent/:id` | GET |
+| `/dashboard/availability` | `GET /talent/:id/availability` | GET |
+| | `POST /talent/:id/availability` | POST |
+| `/dashboard` | `PUT /talent/:id` | PUT |
+| `/talent/[id]/rate` | `POST /talent/:id/rate` | POST |
+| `/become-a-talent` | `POST /talent` | POST |
+
+🧱 Component Breakdown
+Some reusable UI components:
+
+TalentCard: Compact preview of a talent
+
+SearchFilters: Dropdowns and inputs for filters
+
+AvailabilityCalendar: Shows and edits date slots
+
+RatingStars: Star input + display
+
+TalentForm: For profile creation/edit
+
+LocationAutocomplete: (Google Maps API or OpenStreetMap)
+
+🔍 2. Search Results Page (/search)
+Route: /search?location=helsinki&category=musician
+
+Data: Calls GET /talent?location=xyz&category=xyz
+
+Components:
+
+Filters: location, category, date availability
+
+Talent cards: thumbnail, name, short description, rating
+
+Next.js Strategy: useSearchParams() + server-side fetching (or SWR for client fetch)
+
+👤 3. Talent Profile Page (/talent/[id])
+Route: /talent/123
+
+Data: GET /talent/:id
+
+Features:
+
+Full bio, category, pricing
+
+Availability calendar (pulled from backend)
+
+Contact/Booking CTA
+
+Ratings & reviews section (read + post if logged in)
+
+📆 4. Availability Management (/dashboard/availability)
+Only for talents
+
+Data: Uses GET /talent/:id/availability, POST /talent/:id/availability
+
+Components:
+
+Calendar UI (e.g., react-big-calendar or FullCalendar)
+
+Add/remove availability slots
+
+✍️ 5. Rate a Talent (/talent/[id]/rate)
+Can be modal or embedded in /talent/[id]
+
+POST to: /talent/:id/rate
+
+Should include:
+
+Star rating input
+
+Text feedback
+
+🔐 6. Talent Dashboard (/dashboard)
+Route: /dashboard
+
+Only accessible to logged-in talents
+
+Tabs/pages:
+
+Profile: View/edit profile (PUT /talent/:id)
+
+Bookings: List of incoming requests (future feature)
+
+Availability
+
+Ratings/Feedback
+
+➕ 7. Signup / Become a Talent (/become-a-talent)
+Form for new talents to register
+
+POST to: /talent

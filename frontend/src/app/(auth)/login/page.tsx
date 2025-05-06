@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect');
 
   const handleEmailLogin = async (
     e: React.FormEvent<HTMLFormElement>
@@ -33,7 +35,9 @@ export default function LoginPage() {
     if (res?.error) {
       setError(res.error);
     } else {
-      router.push('/dashboard/talent'); // Redirect to protected page after login
+      const destination =
+        typeof redirect === 'string' ? redirect : '/dashboard';
+      router.push(destination);
     }
   };
 

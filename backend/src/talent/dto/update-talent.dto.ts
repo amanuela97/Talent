@@ -4,11 +4,61 @@ import {
   IsNumber,
   IsObject,
   IsOptional,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Media } from '@prisma/client';
+import { TalentStatus } from '@prisma/client';
 
 export class UpdateTalentDto {
+  @IsOptional()
+  @IsString()
+  firsName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  generalCategory?: string;
+
+  @IsOptional()
+  @IsString()
+  specificCategory?: string;
+
+  @IsOptional()
+  @IsString()
+  ServiceName?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: TalentStatus;
+
+  @IsOptional()
+  @IsBoolean()
+  isEmailVerified?: boolean;
+
+  @IsOptional()
+  @IsString()
+  verificationToken?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isOnline?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  languagesSpoken?: string[];
+
   @IsOptional()
   @IsString()
   bio?: string;
@@ -25,18 +75,18 @@ export class UpdateTalentDto {
 
   @IsOptional()
   @IsString()
-  location?: string;
+  city?: string; // Add this for direct city access
 
   @IsOptional()
   @IsObject()
-  availability?: Record<string, string[]>;
+  availability?: Record<string, any>;
 
   @IsOptional()
   @IsObject()
-  socialLinks?: Record<string, string>;
+  socialLinks?: Record<string, any>;
 
   @IsOptional()
   @IsArray()
-  @Type(() => Object)
-  mediasToRemove?: Media[];
+  @IsString({ each: true })
+  mediasToRemove?: string[];
 }

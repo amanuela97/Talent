@@ -9,7 +9,26 @@ const publicRoutes = [
   '/register',
   '/forgot-password',
   '/reset-password',
+  '/verify-email',
 ];
+
+// Routes that should be accessible during talent onboarding
+const talentOnboardingRoutes = [
+  '/join',
+  '/join/verify',
+  '/join/pending',
+  '/verify-email',
+];
+
+// Routes that require approved talent status
+/*const talentApprovedRoutes = [
+  '/dashboard',
+  '/bookings',
+  '/messages',
+  '/reviews',
+  '/settings',
+  '/profile/edit',
+];*/
 
 // This function can be marked `async` if using `await` inside
 export async function middleware(request: NextRequest) {
@@ -17,6 +36,11 @@ export async function middleware(request: NextRequest) {
 
   // Check if the path is in the auth group (public)
   const isPublicRoute = publicRoutes.some(
+    (route) => path === route || path.startsWith(`${route}/`)
+  );
+
+  // Check if this is a talent onboarding route
+  const isTalentOnboardingRoute = talentOnboardingRoutes.some(
     (route) => path === route || path.startsWith(`${route}/`)
   );
 
@@ -28,18 +52,27 @@ export async function middleware(request: NextRequest) {
 
   const isAuthenticated = !!session;
 
-  // Redirect authenticated users away from public routes to dashboard
-  if (isAuthenticated && isPublicRoute) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  // Redirect unauthenticated users to login
+  // If the user is not authenticated and the route is not public, redirect to login
   if (!isAuthenticated && !isPublicRoute) {
-    // Store the original URL to redirect after login
     const url = new URL('/login', request.url);
     url.searchParams.set('callbackUrl', path);
     return NextResponse.redirect(url);
   }
+
+  // If the user is authenticated and trying to access a public route
+  // that's not part of onboarding, redirect to dashboard
+  if (
+    isAuthenticated &&
+    isPublicRoute &&
+    !isTalentOnboardingRoute &&
+    path !== '/'
+  ) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // For approved talent routes, we'll let the component-level checks
+  // handle the specific talent status requirements, since middleware
+  // can't make API calls to check the talent status
 
   return NextResponse.next();
 }
