@@ -36,8 +36,9 @@ async function bootstrap() {
     app.use(cookieParser());
     app.use(bodyParser.json({ limit: '60mb' }));
     app.use(bodyParser.urlencoded({ limit: '60mb', extended: true }));
-    await app.listen(process.env.PORT ?? 4000);
-    console.log(`Application listening on port ${process.env.PORT}`);
+    const PORT = process.env.PORT ?? 4000;
+    await app.listen(PORT);
+    console.log(`Application listening on port ${PORT}`);
   } catch (error) {
     console.error('Error starting server:', error);
     process.exit(1);

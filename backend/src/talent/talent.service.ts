@@ -12,6 +12,7 @@ import { UpdateTalentDto } from './dto/update-talent.dto';
 import { PrismaService } from 'src/prisma.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { MediaType, Talent, Role, Media, Prisma } from '@prisma/client';
+import { MailService } from 'src/mail/mail.service';
 
 interface MediaFiles {
   images: Express.Multer.File[];
@@ -56,9 +57,11 @@ export class TalentService {
       },
     });
   }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly mailService: MailService, // Inject MailService
   ) {}
 
   /**
@@ -371,6 +374,7 @@ export class TalentService {
     maxHourlyRate?: number;
     city?: string; // Changed from location to city
     minRating?: number;
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED';
   }) {
     const {
       skip = 0,
@@ -380,6 +384,7 @@ export class TalentService {
       maxHourlyRate,
       city, // Changed from location to city
       minRating,
+      status,
     } = params;
 
     // Build where conditions based on filters
@@ -388,6 +393,7 @@ export class TalentService {
       hourlyRate?: { gte?: number; lte?: number };
       city?: { contains: string; mode: 'insensitive' }; // Changed from location to city
       rating?: { gte: number };
+      status?: 'PENDING' | 'APPROVED' | 'REJECTED';
     } = {};
 
     if (services?.length) {
@@ -407,6 +413,10 @@ export class TalentService {
 
     if (minRating !== undefined) {
       where.rating = { gte: minRating };
+    }
+
+    if (status) {
+      where.status = status;
     }
 
     // Get talents with pagination and filtering
@@ -735,5 +745,49 @@ export class TalentService {
         isEmailVerified: true,
       },
     });
+  }
+
+  /**
+   * Update the status of a talent profile
+   */
+  async updateStatus(
+    talentId: string,
+    status: 'PENDING' | 'APPROVED' | 'REJECTED',
+  ) {
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId },
+      }),
+    );
+
+    if (!talent) {
+      throw new NotFoundException(`Talent with ID ${talentId} not found`);
+    }
+
+    // Update the talent status
+    const updatedTalent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.update({
+        where: { talentId },
+        data: { status },
+      }),
+    );
+
+    // If the talent was approved, send an email notification
+    if (status === 'APPROVED') {
+      // Get user email
+      const user = await this.prisma.safeQuery(() =>
+        this.prisma.user.findUnique({
+          where: { userId: talent.talentId },
+          select: { email: true, name: true },
+        }),
+      );
+
+      if (user) {
+        // You'll need to inject your mail service to use this
+        await this.mailService.sendTalentApprovalEmail(user.email, user.name);
+      }
+    }
+
+    return updatedTalent;
   }
 }

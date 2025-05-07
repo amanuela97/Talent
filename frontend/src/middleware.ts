@@ -10,6 +10,7 @@ const publicRoutes = [
   '/forgot-password',
   '/reset-password',
   '/verify-email',
+  '/join',
 ];
 
 // Routes that should be accessible during talent onboarding

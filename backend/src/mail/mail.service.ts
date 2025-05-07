@@ -92,4 +92,46 @@ export class MailService {
       throw new Error('Failed to send password reset email');
     }
   }
+
+  // Add this method to your existing MailService class
+  async sendTalentApprovalEmail(email: string, name: string): Promise<void> {
+    const fromEmail = this.configService.get<string>('MAIL_USER');
+    const dashboardUrl =
+      this.configService.get<string>('FRONTEND_URL') + '/dashboard';
+
+    await this.transporter.sendMail({
+      from: `"Talent Platform" <${fromEmail}>`,
+      to: email,
+      subject: 'Congratulations! Your Talent Profile Has Been Approved',
+      html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f8f8f8; padding: 20px; text-align: center;">
+          <h1 style="color: #ff5e00;">Talent Platform</h1>
+        </div>
+        <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
+          <h2>Great news, ${name}!</h2>
+          <p>We're excited to inform you that your talent profile has been <strong style="color: #4CAF50;">approved</strong>!</p>
+          <p>You can now access your talent dashboard, manage your profile, and start receiving booking requests from clients.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${dashboardUrl}" style="background-color: #ff5e00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Go to Your Dashboard
+            </a>
+          </div>
+          <p>Here's what you can do next:</p>
+          <ul style="padding-left: 20px; line-height: 1.6;">
+            <li>Complete and polish your profile with additional details</li>
+            <li>Upload more portfolio items to showcase your work</li>
+            <li>Set your availability to start receiving bookings</li>
+            <li>Share your profile with your network to get your first clients</li>
+          </ul>
+          <p>If you have any questions or need assistance, our support team is always ready to help.</p>
+          <p>Best regards,<br>The Talent Platform Team</p>
+        </div>
+        <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #777;">
+          <p>&copy; ${new Date().getFullYear()} Talent Platform. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+    });
+  }
 }

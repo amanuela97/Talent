@@ -35,6 +35,7 @@ export class AuthService {
     const payload: UserPayload = {
       userId: user.userId,
       username: user.name,
+      role: user.role,
     };
 
     return {
@@ -77,6 +78,7 @@ export class AuthService {
           const payload: UserPayload = {
             userId: existingUser.userId,
             username: existingUser.name,
+            role: existingUser.role,
           };
 
           return {
@@ -114,6 +116,7 @@ export class AuthService {
           const payload: UserPayload = {
             userId: existingUser.userId,
             username: existingUser.name,
+            role: existingUser.role,
           };
 
           return {
@@ -151,6 +154,7 @@ export class AuthService {
         const payload: UserPayload = {
           userId: user.userId,
           username: user.name,
+          role: user.role,
         };
 
         return {
@@ -325,6 +329,7 @@ export class AuthService {
     return this.generateTokens({
       userId: payload.userId,
       username: payload.username,
+      role: payload.role,
     });
   }
 

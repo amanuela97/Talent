@@ -42,6 +42,8 @@ import {
 } from '@nestjs/swagger';
 import { AuthenticatedRequest } from 'src/backendTypes';
 import { isBoolean } from 'class-validator';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 
 @ApiTags('Talents')
 @Controller('talents')
@@ -688,5 +690,59 @@ export class TalentController {
   @ApiResponse({ status: 404, description: 'Invalid verification token' })
   async verifyEmail(@Body('token') token: string) {
     return this.talentService.verifyEmail(token);
+  }
+
+  // Add this endpoint to your TalentController
+  @Get('admin/pending')
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all talents with pending status (Admin only)' })
+  @ApiResponse({ status: 200, description: 'List of pending talents' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async getPendingTalents() {
+    return this.talentService.findAll({
+      status: 'PENDING',
+    });
+  }
+
+  // Add this endpoint to your TalentController
+  @Patch(':id/status')
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update talent status (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Talent ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'APPROVED', 'REJECTED'],
+        },
+      },
+      required: ['status'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Talent status updated successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 404, description: 'Talent not found' })
+  async updateTalentStatus(
+    @Param('id') id: string,
+    @Body('status') status: 'PENDING' | 'APPROVED' | 'REJECTED',
+  ) {
+    return this.talentService.updateStatus(id, status);
   }
 }

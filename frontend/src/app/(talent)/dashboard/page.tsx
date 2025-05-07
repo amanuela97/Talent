@@ -1,7 +1,5 @@
 'use client';
 import { useSession } from 'next-auth/react';
-import { useAppStore } from '@/app/store/store';
-import { handleSignOut } from '@/app/utils/helper';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +15,6 @@ import { Separator } from '@/components/ui/separator';
 import {
   Bell,
   Calendar,
-  LogOut,
   Settings,
   User,
   MessageSquare,
@@ -32,10 +29,10 @@ import Loader from '@/components/custom/Loader';
 import { usePathname } from 'next/navigation';
 import { useTalentStatus } from '@/hooks/useTalentStatus';
 import { useEffect, useState } from 'react';
+import { LogoutButton } from '@/components/custom/LogoutButton';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
-  const clearUser = useAppStore((state) => state.clearUser);
   const pathname = usePathname();
   const { isLoading, checkRedirect, isApproved } = useTalentStatus();
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -58,11 +55,6 @@ export default function Dashboard() {
   if (isLoading || status === 'loading' || !user || !isAuthorized) {
     return <Loader />;
   }
-
-  const signOut = async () => {
-    handleSignOut();
-    clearUser();
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -155,14 +147,7 @@ export default function Dashboard() {
               <Settings className="h-5 w-5" />
               <span className="text-sm font-medium">Settings</span>
             </Link>
-            <Link
-              href="#"
-              onClick={() => signOut()}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 bg-blue-500 hover:bg-gray-100"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="text-sm font-medium">Logout</span>
-            </Link>
+            <LogoutButton />
           </nav>
         </aside>
 
