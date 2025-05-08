@@ -9,7 +9,7 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
@@ -18,11 +18,13 @@ export default function AuthLayout({
   useEffect(() => {
     if (status === 'authenticated') {
       setIsRedirecting(true);
-      const destination =
-        typeof redirect === 'string' ? redirect : '/dashboard';
+      const role = session?.user?.role;
+      const roleBasedRoute =
+        role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+      const destination = redirect ?? roleBasedRoute;
       router.push(destination);
     }
-  }, [status, router, redirect]);
+  }, [status, router, redirect, session]);
 
   if (status === 'loading' || isRedirecting) {
     return <Loader />;

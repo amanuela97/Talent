@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button';
 import TalentRegistrationForm from '@/components/custom/talent/TalentRegistrationForm';
 import axiosInstance from '@/app/utils/axios';
 import { AxiosError } from 'axios';
+import { BackButton } from '@/components/custom/BackButton';
 
 export default function JoinPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isTalentExist, setIsTalentExist] = useState(false);
+  const [isRejected, setIsRejected] = useState(false);
+  const [existingTalentId, setExistingTalentId] = useState<string | null>(null);
 
   // Check if user already has a talent profile
   useEffect(() => {
@@ -29,7 +32,14 @@ export default function JoinPage() {
           // If talent exists, check its status
           if (response.data) {
             const talentData = response.data;
-            setIsTalentExist(true);
+
+            // Check if talent is rejected, store the talentId
+            if (talentData.status === 'REJECTED') {
+              setIsRejected(true);
+              setExistingTalentId(talentData.talentId);
+            } else {
+              setIsTalentExist(true);
+            }
 
             if (talentData.isEmailVerified && talentData.status === 'PENDING') {
               router.push('/join/pending');
@@ -39,6 +49,7 @@ export default function JoinPage() {
               // Email not verified, show verification message
               router.push('/join/verify');
             }
+            // For REJECTED status, we let them stay on this page to resubmit
           }
         } catch (error: unknown) {
           const axiosError = error as AxiosError;
@@ -102,9 +113,14 @@ export default function JoinPage() {
   // Show the talent registration form for authenticated users
   return (
     <div className="container mx-auto py-8">
+      <BackButton route="/" page="home" />
       <h1 className="text-2xl font-bold mb-6 text-center">Become a Talent</h1>
       <div className="bg-white rounded-lg shadow-md p-6">
-        <TalentRegistrationForm userId={session?.user?.userId as string} />
+        <TalentRegistrationForm
+          userId={session?.user?.userId as string}
+          isRejected={isRejected}
+          existingTalentId={existingTalentId}
+        />
       </div>
     </div>
   );

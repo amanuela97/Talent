@@ -68,7 +68,11 @@ export async function middleware(request: NextRequest) {
     !isTalentOnboardingRoute &&
     path !== '/'
   ) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const role = session?.user?.role;
+
+    // Redirect based on role
+    const redirectPath = role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+    return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 
   // For approved talent routes, we'll let the component-level checks
@@ -88,6 +92,6 @@ export const config = {
      * - public files (favicon.ico, etc.)
      * - images (some formats)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|images|public).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|images|public).*)',
   ],
 };

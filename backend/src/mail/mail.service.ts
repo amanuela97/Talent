@@ -93,7 +93,6 @@ export class MailService {
     }
   }
 
-  // Add this method to your existing MailService class
   async sendTalentApprovalEmail(email: string, name: string): Promise<void> {
     const fromEmail = this.configService.get<string>('MAIL_USER');
     const dashboardUrl =
@@ -125,6 +124,57 @@ export class MailService {
             <li>Share your profile with your network to get your first clients</li>
           </ul>
           <p>If you have any questions or need assistance, our support team is always ready to help.</p>
+          <p>Best regards,<br>The Talent Platform Team</p>
+        </div>
+        <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #777;">
+          <p>&copy; ${new Date().getFullYear()} Talent Platform. All rights reserved.</p>
+        </div>
+      </div>
+    `,
+    });
+  }
+
+  async sendTalentRejectionEmail(
+    email: string,
+    name: string,
+    rejectionReason: string,
+  ): Promise<void> {
+    const fromEmail = this.configService.get<string>('MAIL_USER');
+    const joinUrl = this.configService.get<string>('FRONTEND_URL') + '/join';
+
+    await this.transporter.sendMail({
+      from: `"Talent Platform" <${fromEmail}>`,
+      to: email,
+      subject: 'Update on Your Talent Application',
+      html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f8f8f8; padding: 20px; text-align: center;">
+          <h1 style="color: #ff5e00;">Talent Platform</h1>
+        </div>
+        <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
+          <h2>Hello ${name},</h2>
+          <p>Thank you for your application to join our platform as a talent.</p>
+          <p>After careful review, we regret to inform you that your application has not been approved at this time.</p>
+          
+          <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #ff5e00; margin: 20px 0;">
+            <p style="margin: 0; font-style: italic;">Feedback from our team:</p>
+            <p style="margin-top: 10px;">${rejectionReason || 'Your application did not meet our current requirements.'}</p>
+          </div>
+          
+          <p>We encourage you to update your application and try again. Here are some suggestions:</p>
+          <ul style="padding-left: 20px; line-height: 1.6;">
+            <li>Make sure all information is complete and accurate</li>
+            <li>Provide more details about your skills and experience</li>
+            <li>Include high-quality portfolio items if applicable</li>
+          </ul>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${joinUrl}" style="background-color: #ff5e00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Update Your Application
+            </a>
+          </div>
+          
+          <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
           <p>Best regards,<br>The Talent Platform Team</p>
         </div>
         <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #777;">

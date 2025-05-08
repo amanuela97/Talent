@@ -41,7 +41,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthenticatedRequest } from 'src/backendTypes';
-import { isBoolean } from 'class-validator';
+import { isBoolean, isString } from 'class-validator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 
@@ -415,7 +415,9 @@ export class TalentController {
       talentData.status = updateTalentDto.status;
 
     if (updateTalentDto.isEmailVerified !== undefined)
-      talentData.isEmailVerified = updateTalentDto.isEmailVerified;
+      talentData.isEmailVerified = isString(updateTalentDto.isEmailVerified)
+        ? Boolean(updateTalentDto.isEmailVerified)
+        : updateTalentDto.isEmailVerified;
 
     if (updateTalentDto.verificationToken !== undefined)
       talentData.verificationToken = updateTalentDto.verificationToken;
@@ -726,6 +728,11 @@ export class TalentController {
           type: 'string',
           enum: ['PENDING', 'APPROVED', 'REJECTED'],
         },
+        rejectionReason: {
+          type: 'string',
+          description:
+            'Reason for rejection (required when status is REJECTED)',
+        },
       },
       required: ['status'],
     },
@@ -742,7 +749,8 @@ export class TalentController {
   async updateTalentStatus(
     @Param('id') id: string,
     @Body('status') status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    @Body('rejectionReason') rejectionReason?: string,
   ) {
-    return this.talentService.updateStatus(id, status);
+    return this.talentService.updateStatus(id, status, rejectionReason);
   }
 }

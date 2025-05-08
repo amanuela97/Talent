@@ -43,6 +43,10 @@ export class UpdateTalentDto {
   status?: TalentStatus;
 
   @IsOptional()
+  @IsString()
+  rejectionReason?: string;
+
+  @IsOptional()
   @IsBoolean()
   isEmailVerified?: boolean;
 

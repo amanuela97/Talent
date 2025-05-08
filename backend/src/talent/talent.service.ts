@@ -753,6 +753,7 @@ export class TalentService {
   async updateStatus(
     talentId: string,
     status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    rejectionReason?: string,
   ) {
     const talent = await this.prisma.safeQuery(() =>
       this.prisma.talent.findUnique({
@@ -764,27 +765,41 @@ export class TalentService {
       throw new NotFoundException(`Talent with ID ${talentId} not found`);
     }
 
+    // Update the talent status and rejection reason if provided
+    const updateData: Prisma.TalentUpdateInput = { status };
+    if (status === 'REJECTED' && rejectionReason) {
+      updateData.rejectionReason = rejectionReason;
+    }
+
     // Update the talent status
     const updatedTalent = await this.prisma.safeQuery(() =>
       this.prisma.talent.update({
         where: { talentId },
-        data: { status },
+        data: updateData,
       }),
     );
 
-    // If the talent was approved, send an email notification
-    if (status === 'APPROVED') {
-      // Get user email
-      const user = await this.prisma.safeQuery(() =>
-        this.prisma.user.findUnique({
-          where: { userId: talent.talentId },
-          select: { email: true, name: true },
-        }),
-      );
+    // Get user email for notifications
+    const user = await this.prisma.safeQuery(() =>
+      this.prisma.user.findUnique({
+        where: { userId: talent.talentId },
+        select: { email: true, name: true },
+      }),
+    );
 
-      if (user) {
-        // You'll need to inject your mail service to use this
+    if (user) {
+      // If the talent was approved, send an approval email notification
+      if (status === 'APPROVED') {
         await this.mailService.sendTalentApprovalEmail(user.email, user.name);
+      }
+      // If the talent was rejected, send a rejection email notification
+      else if (status === 'REJECTED') {
+        await this.mailService.sendTalentRejectionEmail(
+          user.email,
+          user.name,
+          rejectionReason ||
+            'Your application did not meet our current requirements.',
+        );
       }
     }
 

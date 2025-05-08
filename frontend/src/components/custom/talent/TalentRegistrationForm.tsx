@@ -31,7 +31,17 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function TalentRegistrationForm({ userId }: { userId: string }) {
+interface TalentRegistrationFormProps {
+  userId: string;
+  isRejected: boolean;
+  existingTalentId: string | null;
+}
+
+export default function TalentRegistrationForm({
+  userId,
+  isRejected,
+  existingTalentId,
+}: TalentRegistrationFormProps) {
   const { data: session } = useSession();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,27 +111,38 @@ export default function TalentRegistrationForm({ userId }: { userId: string }) {
 
       // Status field (optional, but we want to be explicit)
       formData.append('status', 'PENDING');
-      formData.append('isEmailVerified', 'false');
 
-      // Send the request to create talent profile
-      await axiosInstance.post(`/talents/profile/${userId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      if (isRejected && existingTalentId) {
+        // Update existing talent profile for rejected talents
+        await axiosInstance.patch(`/talents/${existingTalentId}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        formData.append('isEmailVerified', 'false');
+        // Create new talent profile
+        await axiosInstance.post(`/talents/profile/${userId}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      }
 
-      // Send verification email - use session email instead of localStorage
-      await axiosInstance.post('/auth/send-verification-email', {
-        email: session?.user?.email,
-        verificationToken,
-        name: `${data.firstName} ${data.lastName}`,
-      });
+      if (isRejected && existingTalentId) {
+        // Send verification email - use session email instead of localStorage
+        await axiosInstance.post('/auth/send-verification-email', {
+          email: session?.user?.email,
+          verificationToken,
+          name: `${data.firstName} ${data.lastName}`,
+        });
+      }
 
       // Redirect to verification page
       router.push('/join/verify');
     } catch (error) {
-      console.error('Error creating talent profile:', error);
-      alert('Failed to create talent profile. Please try again.');
+      console.error('Error creating/updating talent profile:', error);
+      alert('Failed to process talent profile. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -192,7 +213,11 @@ export default function TalentRegistrationForm({ userId }: { userId: string }) {
                 className="ml-auto bg-orange-500 hover:bg-orange-600"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit'}
+                {isSubmitting
+                  ? 'Submitting...'
+                  : isRejected
+                  ? 'Resubmit'
+                  : 'Submit'}
               </Button>
             )}
           </div>

@@ -55,6 +55,7 @@ model Talent {
   phoneNumber         String
   bio                 String?  
   status              TalentStatus@default(PENDING)
+  rejectionReason     String?    // Added to store reason for rejection
   isEmailVerified     Boolean     @default(false)
   verificationToken   String
   services            String[]    @default([])

@@ -2,9 +2,9 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,12 +15,23 @@ import GoogleButton from 'react-google-button';
 import { BackButton } from '@/components/custom/BackButton';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      const role = session?.user?.role;
+      const roleBasedRoute =
+        role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+      const destination = redirect ?? roleBasedRoute;
+      router.push(destination);
+    }
+  }, [status, session, redirect, router]);
 
   const handleEmailLogin = async (
     e: React.FormEvent<HTMLFormElement>
@@ -34,10 +45,6 @@ export default function LoginPage() {
 
     if (res?.error) {
       setError(res.error);
-    } else {
-      const destination =
-        typeof redirect === 'string' ? redirect : '/dashboard';
-      router.push(destination);
     }
   };
 
@@ -127,7 +134,7 @@ export default function LoginPage() {
 
             <div className="flex justify-center">
               <GoogleButton
-                onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                onClick={() => signIn('google')}
                 className="w-auto"
               />
             </div>

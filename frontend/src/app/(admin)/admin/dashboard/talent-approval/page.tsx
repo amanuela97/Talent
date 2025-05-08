@@ -15,6 +15,15 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import {
   CheckCircle,
   XCircle,
   PhoneCall,
@@ -37,6 +46,7 @@ interface Talent {
   address: string;
   phoneNumber: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
 }
 
 export default function TalentApprovalPage() {
@@ -45,6 +55,9 @@ export default function TalentApprovalPage() {
   const [pendingTalents, setPendingTalents] = useState<Talent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
+  const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Check if user is authenticated and is an admin
   useEffect(() => {
@@ -104,15 +117,38 @@ export default function TalentApprovalPage() {
     }
   };
 
+  const openRejectionModal = (talentId: string) => {
+    setSelectedTalentId(talentId);
+    setRejectionReason('');
+    setRejectionModalOpen(true);
+  };
+
+  const handleRejection = async () => {
+    if (!selectedTalentId) return;
+
+    await updateTalentStatus(selectedTalentId, 'REJECTED', rejectionReason);
+    setRejectionModalOpen(false);
+    setSelectedTalentId(null);
+    setRejectionReason('');
+  };
+
   const updateTalentStatus = async (
     talentId: string,
-    newStatus: 'APPROVED' | 'REJECTED'
+    newStatus: 'APPROVED' | 'REJECTED',
+    reason?: string
   ) => {
     try {
       setProcessing(talentId);
-      await axiosInstance.patch(`/talents/${talentId}/status`, {
+
+      const payload: { status: string; rejectionReason?: string } = {
         status: newStatus,
-      });
+      };
+
+      if (newStatus === 'REJECTED' && reason) {
+        payload.rejectionReason = reason;
+      }
+
+      await axiosInstance.patch(`/talents/${talentId}/status`, payload);
 
       // Remove the talent from the list
       setPendingTalents((prevTalents) =>
@@ -140,7 +176,7 @@ export default function TalentApprovalPage() {
   const talentsToRender = Array.isArray(pendingTalents) ? pendingTalents : [];
 
   return (
-    <div className="container max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+    <div className=" max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold mb-3">Talent Approval Dashboard</h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -149,7 +185,7 @@ export default function TalentApprovalPage() {
       </div>
 
       {talentsToRender.length === 0 ? (
-        <div className="text-center py-20 bg-muted/30 rounded-lg max-w-3xl mx-auto">
+        <div className="text-center py-20 bg-muted/30 rounded-lg max-w-3xl mx-auto h-screen">
           <div className="mb-4 flex justify-center">
             <CheckCircle className="h-12 w-12 text-green-500 opacity-70" />
           </div>
@@ -176,9 +212,7 @@ export default function TalentApprovalPage() {
                     </CardTitle>
                     <CardDescription className="flex items-center mt-1">
                       <User className="w-4 h-4 mr-1" />
-                      <span>
-                        Talent ID: {talent.talentId.substring(0, 8)}...
-                      </span>
+                      <span>Talent ID: {talent.talentId}</span>
                     </CardDescription>
                   </div>
                   <Badge
@@ -191,6 +225,19 @@ export default function TalentApprovalPage() {
               </CardHeader>
 
               <CardContent className="space-y-4 pb-3">
+                {talent.rejectionReason && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-md mb-2">
+                    <p className="text-sm font-semibold text-amber-800 mb-1">
+                      Resubmission
+                    </p>
+                    <p className="text-sm text-amber-700">
+                      <span className="font-medium">
+                        Previous rejection reason:
+                      </span>{' '}
+                      {talent.rejectionReason}
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground flex items-center">
@@ -236,9 +283,7 @@ export default function TalentApprovalPage() {
                 <Button
                   variant="outline"
                   className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 flex-1 cursor-pointer"
-                  onClick={() =>
-                    updateTalentStatus(talent.talentId, 'REJECTED')
-                  }
+                  onClick={() => openRejectionModal(talent.talentId)}
                   disabled={!!processing}
                 >
                   {processing === talent.talentId ? (
@@ -269,6 +314,44 @@ export default function TalentApprovalPage() {
           ))}
         </div>
       )}
+
+      {/* Rejection Reason Modal */}
+      <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Rejection Reason</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this talent application.
+              This will be included in the rejection email.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <Textarea
+              placeholder="Enter reason for rejection..."
+              className="min-h-[120px]"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectionModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRejection}
+              variant="destructive"
+              disabled={!rejectionReason.trim()}
+            >
+              Reject Application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

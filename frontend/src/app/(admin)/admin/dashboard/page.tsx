@@ -23,6 +23,7 @@ import Link from 'next/link';
 import Loader from '@/components/custom/Loader';
 import { toast } from 'sonner';
 import axiosInstance from '@/app/utils/axios';
+import { handleSignOut } from '@/app/utils/helper';
 
 interface DashboardStats {
   totalTalents: number;
@@ -85,15 +86,6 @@ export default function AdminDashboard() {
       toast.error('Failed to fetch dashboard statistics.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await axiosInstance.post('/auth/logout');
-      router.push('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
     }
   };
 
@@ -217,7 +209,7 @@ export default function AdminDashboard() {
               </Link>
             ) : (
               <button
-                className="w-full text-left"
+                className="w-full text-left cursor-pointer"
                 onClick={item.action ? item.action : undefined}
               >
                 <AdminMenuCard item={item} />
