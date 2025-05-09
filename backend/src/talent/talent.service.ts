@@ -71,6 +71,7 @@ export class TalentService {
     userId: string,
     createTalentDto: CreateTalentDto,
     files: {
+      profilePicture: Express.Multer.File;
       images: Express.Multer.File[];
       videos: Express.Multer.File[];
       audios: Express.Multer.File[];
@@ -85,12 +86,28 @@ export class TalentService {
       throw new ConflictException('User already has a talent profile');
     }
 
-    // Create talent profile first
+    // First upload the profile picture to Cloudinary
+    let profilePictureUrl = '';
+    if (files.profilePicture) {
+      try {
+        const uploadResult = await this.cloudinaryService.uploadProfilePicture(
+          files.profilePicture,
+          userId,
+        );
+        profilePictureUrl = uploadResult.url;
+      } catch (error) {
+        console.error('Error uploading profile picture:', error);
+        throw new BadRequestException('Failed to upload profile picture');
+      }
+    }
+
+    // Create talent profile with the profile picture URL
     const talent = await this.prisma.talent.create({
       data: {
         talentId: userId,
         firsName: createTalentDto.firsName,
         lastName: createTalentDto.lastName,
+        talentProfilePicture: profilePictureUrl, // Set the profile picture URL
         generalCategory: createTalentDto.generalCategory,
         specificCategory: createTalentDto.specificCategory,
         ServiceName: createTalentDto.ServiceName,
@@ -357,6 +374,7 @@ export class TalentService {
     createTalentDto: CreateTalentDto,
   ): Promise<Talent> {
     return this.createWithMedia(userId, createTalentDto, {
+      profilePicture: null as unknown as Express.Multer.File,
       images: [],
       videos: [],
       audios: [],
@@ -375,6 +393,7 @@ export class TalentService {
     city?: string; // Changed from location to city
     minRating?: number;
     status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+    isEmailVerified?: boolean;
   }) {
     const {
       skip = 0,
@@ -385,6 +404,7 @@ export class TalentService {
       city, // Changed from location to city
       minRating,
       status,
+      isEmailVerified,
     } = params;
 
     // Build where conditions based on filters
@@ -394,6 +414,7 @@ export class TalentService {
       city?: { contains: string; mode: 'insensitive' }; // Changed from location to city
       rating?: { gte: number };
       status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+      isEmailVerified?: boolean;
     } = {};
 
     if (services?.length) {
@@ -417,6 +438,10 @@ export class TalentService {
 
     if (status) {
       where.status = status;
+    }
+
+    if (isEmailVerified) {
+      where.isEmailVerified = isEmailVerified;
     }
 
     // Get talents with pagination and filtering

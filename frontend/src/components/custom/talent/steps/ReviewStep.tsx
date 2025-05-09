@@ -1,6 +1,8 @@
 'use client';
+import Image from 'next/image';
 
 type FormValues = {
+  profilePicture: File;
   firstName: string;
   lastName: string;
   generalCategory: string;
@@ -11,14 +13,33 @@ type FormValues = {
 };
 
 export default function ReviewStep({ formValues }: { formValues: FormValues }) {
+  // Create a preview URL for the profile picture
+  const previewUrl = formValues.profilePicture
+    ? URL.createObjectURL(formValues.profilePicture)
+    : null;
+
   return (
     <div className="space-y-6">
       <p className="text-gray-600 mb-4">
         Review your information before submitting your talent profile
       </p>
 
-      <div className="bg-gray-50 p-4 rounded-lg">
+      <div className="bg-gray-50 p-6 rounded-lg">
         <h3 className="font-semibold text-lg mb-4">Your Talent Profile</h3>
+
+        {/* Profile Picture Preview */}
+        {previewUrl && (
+          <div className="flex justify-center mb-6">
+            <div className="relative h-48 w-48 rounded-full overflow-hidden border-2 border-orange-500">
+              <Image
+                src={previewUrl}
+                alt="Profile preview"
+                fill
+                className="object-cover"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">

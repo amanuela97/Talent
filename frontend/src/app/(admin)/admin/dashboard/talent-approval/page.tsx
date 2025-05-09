@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import axiosInstance from '@/app/utils/axios';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +41,7 @@ interface Talent {
   talentId: string;
   firsName: string;
   lastName: string;
+  talentProfilePicture: string;
   generalCategory: string;
   specificCategory: string;
   ServiceName: string;
@@ -206,14 +208,23 @@ export default function TalentApprovalPage() {
             >
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl">
-                      {talent.firsName} {talent.lastName}
-                    </CardTitle>
-                    <CardDescription className="flex items-center mt-1">
-                      <User className="w-4 h-4 mr-1" />
-                      <span>Talent ID: {talent.talentId}</span>
-                    </CardDescription>
+                  <div className="flex items-center">
+                    <Image
+                      src={talent.talentProfilePicture}
+                      alt={`${talent.firsName} ${talent.lastName}`}
+                      width={40}
+                      height={40}
+                      className="rounded-full mr-3"
+                    />
+                    <div>
+                      <CardTitle className="text-xl">
+                        {talent.firsName} {talent.lastName}
+                      </CardTitle>
+                      <CardDescription className="flex items-center mt-1">
+                        <User className="w-4 h-4 mr-1" />
+                        <span>Talent ID: {talent.talentId}</span>
+                      </CardDescription>
+                    </div>
                   </div>
                   <Badge
                     variant="outline"

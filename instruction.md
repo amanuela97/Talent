@@ -92,7 +92,7 @@ Body: “Your talent profile has been approved. You can now log in and access yo
 
 | Route                 | Public | Authenticated | Special Condition                                          |
 | --------------------- | ------ | ------------- | ---------------------------------------------------------- | --- |
-| `/join`               | ✅     | ✅            | Form shown only if not pending or approved                 |
+| `/join` hhh           | ✅     | ✅            | Form shown only if not pending or approved                 |
 | `/verify-email`       | ✅     | —             | Token in query                                             |
 | `/join/pending`       | —      | ✅            | `emailVerified && status === 'pending'`                    |
 | `/dashboard` & others | —      | ✅            | Redirect to `/join/pending` unless `status === 'approved'` |     |

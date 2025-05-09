@@ -8,6 +8,7 @@ export class CreateTalentDto {
   ServiceName: string;
   address: string;
   phoneNumber: string;
+  talentProfilePicture?: string; // URL will be stored after upload
   status?: TalentStatus;
   isEmailVerified?: boolean;
   verificationToken?: string;

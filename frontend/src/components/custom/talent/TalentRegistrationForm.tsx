@@ -20,6 +20,9 @@ import ReviewStep from './steps/ReviewStep';
 
 // Form schema
 const formSchema = z.object({
+  profilePicture: z.instanceof(File, {
+    message: 'Profile picture is required',
+  }),
   firstName: z.string().min(2, 'First name is required'),
   lastName: z.string().min(2, 'Last name is required'),
   generalCategory: z.string().min(1, 'General category is required'),
@@ -65,7 +68,7 @@ export default function TalentRegistrationForm({
 
   // Fields to validate at each step
   const stepValidationFields = [
-    ['firstName', 'lastName'],
+    ['profilePicture', 'firstName', 'lastName'],
     ['generalCategory'],
     ['specificCategory'],
     ['serviceName'],
@@ -108,6 +111,11 @@ export default function TalentRegistrationForm({
       formData.append('address', data.address);
       formData.append('phoneNumber', data.phoneNumber);
       formData.append('verificationToken', verificationToken);
+
+      // Add profile picture to form data
+      if (data.profilePicture) {
+        formData.append('profilePicture', data.profilePicture);
+      }
 
       // Status field (optional, but we want to be explicit)
       formData.append('status', 'PENDING');

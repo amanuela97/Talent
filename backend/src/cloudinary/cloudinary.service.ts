@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 // src/cloudinary/cloudinary.service.ts
 import { Injectable } from '@nestjs/common';
 import cloudinary from './cloudinary.config';
-import { UploadApiResponse } from 'cloudinary';
+import { UploadApiResponse, UploadApiOptions } from 'cloudinary';
 import { MediaType } from '@prisma/client';
 import * as toStream from 'buffer-to-stream';
 
@@ -66,10 +65,36 @@ export class CloudinaryService {
   }
 
   /**
+   * Upload a talent profile picture to Cloudinary
+   * @param file - Profile picture file to be uploaded
+   * @param talentId - Unique Talent ID for folder organization
+   * @returns Promise with uploaded file URL and public ID
+   */
+  async uploadProfilePicture(
+    file: Express.Multer.File,
+    talentId: string,
+  ): Promise<{ url: string; publicId: string }> {
+    const folder = `talent/TalentprofilePictures/${talentId}`;
+
+    // Upload to Cloudinary with transformation for profile pictures
+    const result = await this.uploadFile(file, 'image', folder, {
+      width: 500,
+      height: 500,
+      crop: 'fill',
+      gravity: 'face',
+    });
+
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+    };
+  }
+
+  /**
    * Upload a single file to Cloudinary
    * @param file - File to be uploaded
    * @param mediaType - Type of media (image, video, audio)
-   * @param folder - Folder path for organization
+   * @param talentId - Unique Talent ID for folder organization
    * @returns Promise with uploaded file details
    */
   async uploadSingleFile(
@@ -155,16 +180,24 @@ export class CloudinaryService {
     file: Express.Multer.File,
     resourceType: 'image' | 'video' | 'audio',
     folder: string,
+    transformation?: Record<string, any>,
   ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
       if (!file?.buffer || file.buffer.length === 0) {
         return reject(new Error('File buffer is empty or undefined.'));
       }
+      const uploadOptions: UploadApiOptions = {
+        resource_type: resourceType === 'audio' ? 'video' : resourceType, // Cloudinary uses 'video' for audio as well
+        folder,
+      };
+
+      // Add transformation options if provided
+      if (transformation) {
+        uploadOptions.transformation = transformation;
+      }
+
       const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: resourceType === 'audio' ? 'video' : resourceType, // Cloudinary uses 'video' for audio as well
-          folder,
-        },
+        uploadOptions,
         (error, result) => {
           if (error) {
             const errorMsg =

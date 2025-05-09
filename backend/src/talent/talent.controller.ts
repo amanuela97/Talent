@@ -55,6 +55,7 @@ export class TalentController {
   @ApiBearerAuth()
   @UseInterceptors(
     FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
       { name: 'images', maxCount: 10 },
       { name: 'videos', maxCount: 5 },
       { name: 'audios', maxCount: 5 },
@@ -105,6 +106,10 @@ export class TalentController {
         city: { type: 'string' },
         availability: { type: 'object' },
         socialLinks: { type: 'object' },
+        profilePicture: {
+          type: 'string',
+          format: 'binary',
+        },
         images: {
           type: 'array',
           items: {
@@ -136,6 +141,7 @@ export class TalentController {
         'address',
         'phoneNumber',
         'verificationToken',
+        'profilePicture',
       ],
     },
   })
@@ -144,11 +150,17 @@ export class TalentController {
     @Body() createTalentDto: CreateTalentDto,
     @UploadedFiles()
     files: {
+      profilePicture?: Express.Multer.File[];
       images?: Express.Multer.File[];
       videos?: Express.Multer.File[];
       audios?: Express.Multer.File[];
     },
   ) {
+    // Validate that profile picture is provided
+    if (!files.profilePicture || files.profilePicture.length === 0) {
+      throw new BadRequestException('Profile picture is required');
+    }
+
     const talentData: CreateTalentDto = {
       firsName: createTalentDto.firsName,
       lastName: createTalentDto.lastName,
@@ -211,6 +223,7 @@ export class TalentController {
     }
 
     const mediaFiles = {
+      profilePicture: files.profilePicture[0],
       images: files.images || [],
       videos: files.videos || [],
       audios: files.audios || [],
@@ -709,6 +722,7 @@ export class TalentController {
   async getPendingTalents() {
     return this.talentService.findAll({
       status: 'PENDING',
+      isEmailVerified: true,
     });
   }
 
