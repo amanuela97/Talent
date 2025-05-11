@@ -20,9 +20,9 @@ import {
   UploadedFiles,
   Req,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import {
   FileInterceptor,
-  AnyFilesInterceptor,
   FileFieldsInterceptor,
 } from '@nestjs/platform-express';
 import { TalentService } from './talent.service';
@@ -79,11 +79,11 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
-        firsName: { type: 'string' },
+        firstName: { type: 'string' },
         lastName: { type: 'string' },
         generalCategory: { type: 'string' },
         specificCategory: { type: 'string' },
-        ServiceName: { type: 'string' },
+        serviceName: { type: 'string' },
         address: { type: 'string' },
         phoneNumber: { type: 'string' },
         status: {
@@ -93,6 +93,7 @@ export class TalentController {
         },
         isEmailVerified: { type: 'boolean', default: false },
         verificationToken: { type: 'string' },
+        isPublic: { type: 'boolean', default: false },
         languagesSpoken: {
           type: 'array',
           items: { type: 'string' },
@@ -133,11 +134,11 @@ export class TalentController {
         },
       },
       required: [
-        'firsName',
+        'firstName',
         'lastName',
         'generalCategory',
         'specificCategory',
-        'ServiceName',
+        'serviceName',
         'address',
         'phoneNumber',
         'verificationToken',
@@ -162,11 +163,11 @@ export class TalentController {
     }
 
     const talentData: CreateTalentDto = {
-      firsName: createTalentDto.firsName,
+      firstName: createTalentDto.firstName,
       lastName: createTalentDto.lastName,
       generalCategory: createTalentDto.generalCategory,
       specificCategory: createTalentDto.specificCategory,
-      ServiceName: createTalentDto.ServiceName,
+      serviceName: createTalentDto.serviceName,
       address: createTalentDto.address,
       phoneNumber: createTalentDto.phoneNumber,
       status:
@@ -319,6 +320,7 @@ export class TalentController {
   @ApiBearerAuth()
   @UseInterceptors(
     FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
       { name: 'images', maxCount: 10 },
       { name: 'videos', maxCount: 5 },
       { name: 'audios', maxCount: 5 },
@@ -336,11 +338,11 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
-        firsName: { type: 'string' },
+        firstName: { type: 'string' },
         lastName: { type: 'string' },
         generalCategory: { type: 'string' },
         specificCategory: { type: 'string' },
-        ServiceName: { type: 'string' },
+        serviceName: { type: 'string' },
         address: { type: 'string' },
         phoneNumber: { type: 'string' },
         status: {
@@ -350,6 +352,7 @@ export class TalentController {
         isEmailVerified: { type: 'boolean' },
         verificationToken: { type: 'string' },
         isOnline: { type: 'boolean' },
+        isPublic: { type: 'boolean' },
         languagesSpoken: {
           type: 'array',
           items: { type: 'string' },
@@ -366,6 +369,10 @@ export class TalentController {
         mediasToRemove: {
           type: 'array',
           items: { type: 'string' },
+        },
+        profilePicture: {
+          type: 'string',
+          format: 'binary',
         },
         images: {
           type: 'array',
@@ -396,6 +403,7 @@ export class TalentController {
     @Body() updateTalentDto: UpdateTalentDto,
     @UploadedFiles()
     files: {
+      profilePicture?: Express.Multer.File[];
       images?: Express.Multer.File[];
       videos?: Express.Multer.File[];
       audios?: Express.Multer.File[];
@@ -403,8 +411,8 @@ export class TalentController {
   ) {
     const talentData: UpdateTalentDto = {};
 
-    if (updateTalentDto.firsName !== undefined)
-      talentData.firsName = updateTalentDto.firsName;
+    if (updateTalentDto.firstName !== undefined)
+      talentData.firstName = updateTalentDto.firstName;
 
     if (updateTalentDto.lastName !== undefined)
       talentData.lastName = updateTalentDto.lastName;
@@ -415,8 +423,8 @@ export class TalentController {
     if (updateTalentDto.specificCategory !== undefined)
       talentData.specificCategory = updateTalentDto.specificCategory;
 
-    if (updateTalentDto.ServiceName !== undefined)
-      talentData.ServiceName = updateTalentDto.ServiceName;
+    if (updateTalentDto.serviceName !== undefined)
+      talentData.serviceName = updateTalentDto.serviceName;
 
     if (updateTalentDto.address !== undefined)
       talentData.address = updateTalentDto.address;
@@ -437,6 +445,9 @@ export class TalentController {
 
     if (updateTalentDto.isOnline !== undefined)
       talentData.isOnline = updateTalentDto.isOnline;
+
+    if (updateTalentDto.isPublic !== undefined)
+      talentData.isPublic = updateTalentDto.isPublic;
 
     if (updateTalentDto.languagesSpoken !== undefined) {
       talentData.languagesSpoken = Array.isArray(
@@ -483,12 +494,14 @@ export class TalentController {
     }
 
     const mediaFiles = {
+      profilePicture: files?.profilePicture?.[0],
       images: files?.images || [],
       videos: files?.videos || [],
       audios: files?.audios || [],
     };
 
     const hasFiles =
+      !!mediaFiles.profilePicture ||
       mediaFiles.images.length > 0 ||
       mediaFiles.videos.length > 0 ||
       mediaFiles.audios.length > 0;
@@ -579,7 +592,14 @@ export class TalentController {
   @Post(':id/media/bulk')
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
-  @UseInterceptors(AnyFilesInterceptor())
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
+      { name: 'images', maxCount: 10 },
+      { name: 'videos', maxCount: 4 },
+      { name: 'audios', maxCount: 10 },
+    ]),
+  )
   @ApiOperation({ summary: 'Upload multiple media files for talent portfolio' })
   @ApiConsumes('multipart/form-data')
   @ApiParam({ name: 'id', description: 'Talent ID' })
@@ -587,6 +607,10 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
+        profilePicture: {
+          type: 'string',
+          format: 'binary',
+        },
         images: {
           type: 'array',
           items: {
@@ -619,15 +643,65 @@ export class TalentController {
   @ApiResponse({ status: 404, description: 'Talent profile not found' })
   async uploadMultipleMedia(
     @Param('id', ParseUUIDPipe) id: string,
-    @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
+    @UploadedFiles()
+    files: {
+      profilePicture?: Express.Multer.File[];
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+      audios?: Express.Multer.File[];
+    },
   ) {
+    console.log('Received files:', files);
+
     const mediaFiles = {
+      profilePicture: files.profilePicture?.[0],
       images: files.images || [],
       videos: files.videos || [],
       audios: files.audios || [],
     };
 
-    return this.talentService.addMultipleMedia(id, mediaFiles);
+    console.log('Processed mediaFiles:', {
+      profilePicture: mediaFiles.profilePicture
+        ? mediaFiles.profilePicture.originalname
+        : 'none',
+      images: mediaFiles.images.length,
+      videos: mediaFiles.videos.length,
+      audios: mediaFiles.audios.length,
+    });
+
+    // Check if profile picture is present
+    if (mediaFiles.profilePicture) {
+      // Update profile picture separately
+      await this.talentService.updateProfilePicture(
+        id,
+        mediaFiles.profilePicture,
+      );
+    }
+
+    // Check if there are any other media files to process
+    const hasFiles =
+      mediaFiles.images.length > 0 ||
+      mediaFiles.videos.length > 0 ||
+      mediaFiles.audios.length > 0;
+
+    if (!hasFiles) {
+      if (mediaFiles.profilePicture) {
+        // If we only updated the profile picture but no other media,
+        // return success instead of trying to add other media
+        return {
+          success: true,
+          message: 'Profile picture updated successfully',
+        };
+      }
+      throw new BadRequestException('No media files provided');
+    }
+
+    // Process other media files
+    return this.talentService.addMultipleMedia(id, {
+      images: mediaFiles.images,
+      videos: mediaFiles.videos,
+      audios: mediaFiles.audios,
+    });
   }
 
   @Delete('media/:mediaId')

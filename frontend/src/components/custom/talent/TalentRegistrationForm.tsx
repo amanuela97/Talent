@@ -103,11 +103,11 @@ export default function TalentRegistrationForm({
 
       // Create form data for multipart/form-data
       const formData = new FormData();
-      formData.append('firsName', data.firstName);
+      formData.append('firstName', data.firstName);
       formData.append('lastName', data.lastName);
       formData.append('generalCategory', data.generalCategory);
       formData.append('specificCategory', data.specificCategory);
-      formData.append('ServiceName', data.serviceName);
+      formData.append('serviceName', data.serviceName);
       formData.append('address', data.address);
       formData.append('phoneNumber', data.phoneNumber);
       formData.append('verificationToken', verificationToken);

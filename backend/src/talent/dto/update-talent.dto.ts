@@ -12,7 +12,7 @@ import { TalentStatus } from '@prisma/client';
 export class UpdateTalentDto {
   @IsOptional()
   @IsString()
-  firsName?: string;
+  firstName?: string;
 
   @IsOptional()
   @IsString()
@@ -28,7 +28,7 @@ export class UpdateTalentDto {
 
   @IsOptional()
   @IsString()
-  ServiceName?: string;
+  serviceName?: string;
 
   @IsOptional()
   @IsString()
@@ -57,6 +57,10 @@ export class UpdateTalentDto {
   @IsOptional()
   @IsBoolean()
   isOnline?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 
   @IsOptional()
   @IsArray()

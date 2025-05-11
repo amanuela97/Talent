@@ -13,13 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
-  Bell,
   Calendar,
   Settings,
   User,
   MessageSquare,
   Star,
-  ChevronDown,
   Edit,
   Upload,
   DollarSign,
@@ -58,48 +56,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="border-b sticky top-0 z-10 bg-white">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2">
-              <Image
-                src="/assets/talent-logo.png"
-                alt="Talent Logo"
-                width={100}
-                height={50}
-                priority
-              />
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-orange-500" />
-            </Button>
-            <Separator orientation="vertical" className="h-8" />
-            <div className="flex items-center gap-2">
-              <div className="relative h-8 w-8 rounded-full bg-orange-100 overflow-hidden">
-                <Image
-                  src={
-                    user?.profilePicture ||
-                    '/placeholder.svg?height=32&width=32'
-                  }
-                  alt="User Avatar"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="hidden md:flex flex-col">
-                <span className="text-sm font-medium">{user.name}</span>
-                <span className="text-xs text-gray-500">Musician</span>
-              </div>
-              <ChevronDown className="h-4 w-4 text-gray-500" />
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div className="flex flex-1">
         {/* Sidebar */}
         <aside className="hidden md:flex w-64 flex-col border-r bg-gray-50 p-4">

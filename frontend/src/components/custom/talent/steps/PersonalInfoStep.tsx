@@ -31,7 +31,7 @@ export default function PersonalInfoStep() {
       <FormField
         control={control}
         name="profilePicture"
-        render={({ field: { ...fieldProps } }) => (
+        render={({}) => (
           <FormItem className="space-y-4">
             <FormLabel>Profile Picture</FormLabel>
             <FormDescription>
@@ -57,11 +57,8 @@ export default function PersonalInfoStep() {
                     accept="image/*"
                     className="hidden"
                     id="profile-picture-upload"
-                    {...fieldProps}
-                    onChange={(e) => {
-                      handleFileChange(e);
-                      fieldProps.onChange(e);
-                    }}
+                    onChange={handleFileChange}
+                    value="" // Add empty string value to keep it controlled
                   />
                   <label
                     htmlFor="profile-picture-upload"

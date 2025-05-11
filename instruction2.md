@@ -1,0 +1,11 @@
+- I have created a /talent/profile/edit page where a user can edit their profile
+- The page has a ProfileSidebar component which include an image and a side navigation and it should act as a layout that is always visible on the page.
+- When the navigation changes dynamically display new components instead of creating an actual page. Also the url should reflect each navigation. for instance if user navigate on the page directly to /talent/profile/edit/general, then the General info should be displayed on the page along side the layout ProfileSidebar.
+- The navigation should include ["Profile Overview", "General Info", "Photos", "Videos", "Audio", "Details"]
+- the "Profile Overview" is the default component displayed when navigating to talent/profile/edit and the url should be changed to talent/profile/edit/overview. The component ProfileOverviewEditor should be shown.
+- Make sure to update ProfileOverviewEditor to show real data. The ProfileOverviewEditor component shows the state of talents provided field data. For instance if the users has less images, videos, or audio than the recommended amount then the UI would shows a warning icon with a message encouraging the user to add more images etc. The recommended ammount should be at least 4 images but max 10 for the gallery, at least 2 videos but no more than 4, and at least 2 audio files but max 10 allowed.
+- If the users is missing or has no photos, videos, or audio then show a red warning sign on the ProfileOverviewEditor indicating what they are missing.
+- If every required field is provided and the recommended ammount images, videos, or audio is set already then show a green tick icon with a message.
+- When navigating to "General Info" component/page the user should have appropriate UI to edit these fields firstName, lastName, phoneNumber, address, city, bio, generalCategory, specificCategory and serviceName.
+- When navigating to "Details" component/page the user should have appropriate UI to edit these fields services, hourlyRate, availability, languagesSpoken, and socialLinks.
+- The same for "video", "Photos", and "Audio". But make sure the talentProfilePicture field is also updated on the "Photos" component/page but should have a seperate UI than the UI for uploading to the image gallery.

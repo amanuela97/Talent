@@ -17,7 +17,7 @@ export default function VerifyPage() {
     isEmailVerified: boolean;
     status: string;
     verificationToken: string;
-    firsName: string;
+    firstName: string;
     lastName: string;
   } | null>(null);
 
@@ -65,7 +65,7 @@ export default function VerifyPage() {
       await axiosInstance.post('/auth/resend-verification-email', {
         email: session.user.email,
         verificationToken: talentData.verificationToken,
-        name: `${talentData.firsName} ${talentData.lastName}`,
+        name: `${talentData.firstName} ${talentData.lastName}`,
       });
 
       setSuccessMessage('Verification email sent successfully!');

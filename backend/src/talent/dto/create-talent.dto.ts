@@ -1,11 +1,11 @@
 import { TalentStatus } from '@prisma/client';
 
 export class CreateTalentDto {
-  firsName: string;
+  firstName: string;
   lastName: string;
   generalCategory: string;
   specificCategory: string;
-  ServiceName: string;
+  serviceName: string;
   address: string;
   phoneNumber: string;
   talentProfilePicture?: string; // URL will be stored after upload
@@ -19,6 +19,7 @@ export class CreateTalentDto {
   city?: string;
   availability?: Record<string, any>; // Made optional
   isOnline?: boolean;
+  isPublic?: boolean; // Added for public/private profile control
   socialLinks?: Record<string, any>;
   mediasToRemove?: string[];
 }

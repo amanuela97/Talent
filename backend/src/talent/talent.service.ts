@@ -20,6 +20,13 @@ interface MediaFiles {
   audios: Express.Multer.File[];
 }
 
+// Media file limits per talent
+const MEDIA_LIMITS = {
+  [MediaType.IMAGE]: 10,
+  [MediaType.VIDEO]: 4,
+  [MediaType.AUDIO]: 10,
+};
+
 @Injectable()
 export class TalentService {
   /**
@@ -65,6 +72,184 @@ export class TalentService {
   ) {}
 
   /**
+   * Helper method to update talent profile data from DTO
+   * @param updateTalentDto DTO with talent update data
+   * @returns Prisma-compatible update data object
+   */
+  private buildTalentUpdateData(
+    updateTalentDto: UpdateTalentDto,
+  ): Prisma.TalentUpdateInput {
+    const updateData: Prisma.TalentUpdateInput = {};
+
+    // Map all fields that can be directly assigned
+    const directFields = [
+      'firstName',
+      'lastName',
+      'generalCategory',
+      'specificCategory',
+      'serviceName',
+      'address',
+      'phoneNumber',
+      'isEmailVerified',
+      'verificationToken',
+      'isOnline',
+      'isPublic',
+      'languagesSpoken',
+      'bio',
+      'services',
+      'hourlyRate',
+      'city',
+      'availability',
+      'socialLinks',
+    ] as const;
+
+    for (const field of directFields) {
+      if (updateTalentDto[field] !== undefined) {
+        updateData[field] = updateTalentDto[field];
+      }
+    }
+
+    // Handle status field separately due to type validation
+    if (
+      updateTalentDto.status !== undefined &&
+      typeof updateTalentDto.status === 'string'
+    ) {
+      updateData.status = updateTalentDto.status;
+    }
+
+    return updateData;
+  }
+
+  /**
+   * Check if adding new media files would exceed the limits
+   * @param talentId Talent ID to check
+   * @param files New files being uploaded
+   * @returns Object with validation results and count information
+   */
+  private async validateMediaLimits(
+    talentId: string,
+    files: {
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+      audios?: Express.Multer.File[];
+    },
+  ): Promise<{
+    valid: boolean;
+    errors: string[];
+    currentCounts: Record<MediaType, number>;
+    totalAfterUpload: Record<MediaType, number>;
+  }> {
+    // Get current media counts for this talent
+    const existingMedia = await this.prisma.media.findMany({
+      where: { talentId },
+      select: { type: true },
+    });
+
+    // Count media by type
+    const currentCounts = {
+      [MediaType.IMAGE]: 0,
+      [MediaType.VIDEO]: 0,
+      [MediaType.AUDIO]: 0,
+    };
+
+    existingMedia.forEach((media) => {
+      currentCounts[media.type]++;
+    });
+
+    // Calculate counts after upload
+    const totalAfterUpload = {
+      [MediaType.IMAGE]:
+        currentCounts[MediaType.IMAGE] + (files.images?.length || 0),
+      [MediaType.VIDEO]:
+        currentCounts[MediaType.VIDEO] + (files.videos?.length || 0),
+      [MediaType.AUDIO]:
+        currentCounts[MediaType.AUDIO] + (files.audios?.length || 0),
+    };
+
+    // Check if any limits would be exceeded
+    const errors: string[] = [];
+
+    if (totalAfterUpload[MediaType.IMAGE] > MEDIA_LIMITS[MediaType.IMAGE]) {
+      errors.push(
+        `Image limit exceeded. Maximum ${MEDIA_LIMITS[MediaType.IMAGE]} images allowed. You currently have ${currentCounts[MediaType.IMAGE]} and are trying to add ${files.images?.length || 0} more.`,
+      );
+    }
+
+    if (totalAfterUpload[MediaType.VIDEO] > MEDIA_LIMITS[MediaType.VIDEO]) {
+      errors.push(
+        `Video limit exceeded. Maximum ${MEDIA_LIMITS[MediaType.VIDEO]} videos allowed. You currently have ${currentCounts[MediaType.VIDEO]} and are trying to add ${files.videos?.length || 0} more.`,
+      );
+    }
+
+    if (totalAfterUpload[MediaType.AUDIO] > MEDIA_LIMITS[MediaType.AUDIO]) {
+      errors.push(
+        `Audio limit exceeded. Maximum ${MEDIA_LIMITS[MediaType.AUDIO]} audio files allowed. You currently have ${currentCounts[MediaType.AUDIO]} and are trying to add ${files.audios?.length || 0} more.`,
+      );
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      currentCounts,
+      totalAfterUpload,
+    };
+  }
+
+  /**
+   * Filter files to ensure they don't exceed limits when added
+   * @param talentId Talent ID
+   * @param mediaFiles Media files to be filtered
+   * @returns Filtered media files that won't exceed limits
+   */
+  private async filterFilesToRespectLimits(
+    talentId: string,
+    mediaFiles: MediaFiles,
+  ): Promise<{ mediaFiles: MediaFiles; removed: Record<MediaType, number> }> {
+    const { currentCounts } = await this.validateMediaLimits(
+      talentId,
+      mediaFiles,
+    );
+    const removed = {
+      [MediaType.IMAGE]: 0,
+      [MediaType.VIDEO]: 0,
+      [MediaType.AUDIO]: 0,
+    };
+
+    // Calculate how many of each type we can add
+    const remainingSlots = {
+      [MediaType.IMAGE]: Math.max(
+        0,
+        MEDIA_LIMITS[MediaType.IMAGE] - currentCounts[MediaType.IMAGE],
+      ),
+      [MediaType.VIDEO]: Math.max(
+        0,
+        MEDIA_LIMITS[MediaType.VIDEO] - currentCounts[MediaType.VIDEO],
+      ),
+      [MediaType.AUDIO]: Math.max(
+        0,
+        MEDIA_LIMITS[MediaType.AUDIO] - currentCounts[MediaType.AUDIO],
+      ),
+    };
+
+    // Filter media files to respect limits
+    const filteredFiles: MediaFiles = {
+      images: mediaFiles.images.slice(0, remainingSlots[MediaType.IMAGE]),
+      videos: mediaFiles.videos.slice(0, remainingSlots[MediaType.VIDEO]),
+      audios: mediaFiles.audios.slice(0, remainingSlots[MediaType.AUDIO]),
+    };
+
+    // Calculate how many files were removed
+    removed[MediaType.IMAGE] =
+      mediaFiles.images.length - filteredFiles.images.length;
+    removed[MediaType.VIDEO] =
+      mediaFiles.videos.length - filteredFiles.videos.length;
+    removed[MediaType.AUDIO] =
+      mediaFiles.audios.length - filteredFiles.audios.length;
+
+    return { mediaFiles: filteredFiles, removed };
+  }
+
+  /**
    * Create a new talent profile with media files
    */
   async createWithMedia(
@@ -105,19 +290,19 @@ export class TalentService {
     const talent = await this.prisma.talent.create({
       data: {
         talentId: userId,
-        firsName: createTalentDto.firsName,
+        firstName: createTalentDto.firstName,
         lastName: createTalentDto.lastName,
         talentProfilePicture: profilePictureUrl, // Set the profile picture URL
         generalCategory: createTalentDto.generalCategory,
         specificCategory: createTalentDto.specificCategory,
-        ServiceName: createTalentDto.ServiceName,
+        serviceName: createTalentDto.serviceName,
         address: createTalentDto.address,
         phoneNumber: createTalentDto.phoneNumber,
-        status: createTalentDto.status, // Let Prisma use the default
-        isEmailVerified: createTalentDto.isEmailVerified, // Prisma will use default if undefined
+        status: createTalentDto.status,
+        isEmailVerified: createTalentDto.isEmailVerified,
+        isPublic: createTalentDto.isPublic,
         verificationToken:
           createTalentDto.verificationToken || crypto.randomUUID(),
-        // Optional fields - let Prisma use defaults if undefined
         languagesSpoken: createTalentDto.languagesSpoken,
         bio: createTalentDto.bio,
         services: createTalentDto.services,
@@ -125,7 +310,7 @@ export class TalentService {
         city: createTalentDto.city,
         availability: createTalentDto.availability,
         socialLinks: createTalentDto.socialLinks,
-        isOnline: createTalentDto.isOnline, // Prisma will use default if undefined
+        isOnline: createTalentDto.isOnline,
       },
     });
 
@@ -172,6 +357,7 @@ export class TalentService {
     id: string,
     updateTalentDto: UpdateTalentDto,
     files: {
+      profilePicture?: Express.Multer.File;
       images: Express.Multer.File[];
       videos: Express.Multer.File[];
       audios: Express.Multer.File[];
@@ -187,62 +373,21 @@ export class TalentService {
     }
 
     // Update talent profile
-    const updateData: Prisma.TalentUpdateInput = {};
+    const updateData = this.buildTalentUpdateData(updateTalentDto);
 
-    if (updateTalentDto.firsName !== undefined)
-      updateData.firsName = updateTalentDto.firsName;
-
-    if (updateTalentDto.lastName !== undefined)
-      updateData.lastName = updateTalentDto.lastName;
-
-    if (updateTalentDto.generalCategory !== undefined)
-      updateData.generalCategory = updateTalentDto.generalCategory;
-
-    if (updateTalentDto.specificCategory !== undefined)
-      updateData.specificCategory = updateTalentDto.specificCategory;
-
-    if (updateTalentDto.ServiceName !== undefined)
-      updateData.ServiceName = updateTalentDto.ServiceName;
-
-    if (updateTalentDto.address !== undefined)
-      updateData.address = updateTalentDto.address;
-
-    if (updateTalentDto.phoneNumber !== undefined)
-      updateData.phoneNumber = updateTalentDto.phoneNumber;
-
-    if (updateTalentDto.status !== undefined)
-      if (typeof updateTalentDto.status === 'string') {
-        updateData.status = updateTalentDto.status;
+    // Upload new profile picture if provided
+    if (files?.profilePicture) {
+      try {
+        const uploadResult = await this.cloudinaryService.uploadProfilePicture(
+          files.profilePicture,
+          id,
+        );
+        updateData.talentProfilePicture = uploadResult.url;
+      } catch (error) {
+        console.error('Error uploading profile picture:', error);
+        throw new BadRequestException('Failed to upload profile picture');
       }
-
-    if (updateTalentDto.isEmailVerified !== undefined)
-      updateData.isEmailVerified = updateTalentDto.isEmailVerified;
-
-    if (updateTalentDto.verificationToken !== undefined)
-      updateData.verificationToken = updateTalentDto.verificationToken;
-
-    if (updateTalentDto.isOnline !== undefined)
-      updateData.isOnline = updateTalentDto.isOnline;
-
-    if (updateTalentDto.languagesSpoken !== undefined)
-      updateData.languagesSpoken = updateTalentDto.languagesSpoken;
-
-    if (updateTalentDto.bio !== undefined) updateData.bio = updateTalentDto.bio;
-
-    if (updateTalentDto.services !== undefined)
-      updateData.services = updateTalentDto.services;
-
-    if (updateTalentDto.hourlyRate !== undefined)
-      updateData.hourlyRate = updateTalentDto.hourlyRate;
-
-    if (updateTalentDto.city !== undefined)
-      updateData.city = updateTalentDto.city;
-
-    if (updateTalentDto.availability !== undefined)
-      updateData.availability = updateTalentDto.availability;
-
-    if (updateTalentDto.socialLinks !== undefined)
-      updateData.socialLinks = updateTalentDto.socialLinks;
+    }
 
     // Remove media if specified
     if (
@@ -290,7 +435,11 @@ export class TalentService {
   async addMultipleMedia(
     talentId: string,
     mediaFiles: MediaFiles,
-  ): Promise<Media[]> {
+  ): Promise<{
+    addedMedia: Media[];
+    skippedFiles?: Record<string, number>;
+    warnings?: string[];
+  }> {
     // Check if talent exists
     const talent = await this.prisma.safeQuery(() =>
       this.prisma.talent.findUnique({
@@ -312,8 +461,47 @@ export class TalentService {
       throw new BadRequestException('No media files provided');
     }
 
-    // Process and upload the media files
-    return this.processAndUploadMedia(talentId, mediaFiles);
+    // Validate media limits and get info about current counts
+    const validationResult = await this.validateMediaLimits(
+      talentId,
+      mediaFiles,
+    );
+
+    // If we would exceed limits, decide what to do
+    if (!validationResult.valid) {
+      // Filter files to only include what won't exceed limits
+      const { mediaFiles: filteredFiles, removed } =
+        await this.filterFilesToRespectLimits(talentId, mediaFiles);
+
+      // Check if all files were removed due to limits
+      const allRemoved =
+        removed[MediaType.IMAGE] === mediaFiles.images.length &&
+        removed[MediaType.VIDEO] === mediaFiles.videos.length &&
+        removed[MediaType.AUDIO] === mediaFiles.audios.length;
+
+      if (allRemoved) {
+        throw new BadRequestException(validationResult.errors.join(' '));
+      }
+
+      // Process the filtered files and return warnings
+      const addedMedia = await this.processAndUploadMedia(
+        talentId,
+        filteredFiles,
+      );
+      return {
+        addedMedia,
+        skippedFiles: {
+          images: removed[MediaType.IMAGE],
+          videos: removed[MediaType.VIDEO],
+          audio: removed[MediaType.AUDIO],
+        },
+        warnings: validationResult.errors,
+      };
+    }
+
+    // If we're within limits, process all files
+    const addedMedia = await this.processAndUploadMedia(talentId, mediaFiles);
+    return { addedMedia };
   }
 
   /**
@@ -394,6 +582,7 @@ export class TalentService {
     minRating?: number;
     status?: 'PENDING' | 'APPROVED' | 'REJECTED';
     isEmailVerified?: boolean;
+    isPublic?: boolean;
   }) {
     const {
       skip = 0,
@@ -405,6 +594,7 @@ export class TalentService {
       minRating,
       status,
       isEmailVerified,
+      isPublic,
     } = params;
 
     // Build where conditions based on filters
@@ -415,6 +605,7 @@ export class TalentService {
       rating?: { gte: number };
       status?: 'PENDING' | 'APPROVED' | 'REJECTED';
       isEmailVerified?: boolean;
+      isPublic?: boolean;
     } = {};
 
     if (services?.length) {
@@ -442,6 +633,10 @@ export class TalentService {
 
     if (isEmailVerified) {
       where.isEmailVerified = isEmailVerified;
+    }
+
+    if (isPublic) {
+      where.isPublic = isPublic;
     }
 
     // Get talents with pagination and filtering
@@ -596,14 +791,7 @@ export class TalentService {
     return this.prisma.safeQuery(() =>
       this.prisma.talent.update({
         where: { talentId },
-        data: {
-          bio: updateTalentDto.bio,
-          services: updateTalentDto.services,
-          hourlyRate: updateTalentDto.hourlyRate,
-          city: updateTalentDto.city, // Changed from location to city
-          availability: updateTalentDto.availability,
-          socialLinks: updateTalentDto.socialLinks,
-        },
+        data: this.buildTalentUpdateData(updateTalentDto),
         include: {
           media: true,
         },
@@ -737,8 +925,17 @@ export class TalentService {
 
     // Delete from Cloudinary
     const publicId = this.cloudinaryService.extractPublicIdFromUrl(media.url);
+
     if (publicId) {
-      await this.cloudinaryService.deleteFile(publicId);
+      try {
+        const deleteResult = await this.cloudinaryService.deleteFile(publicId);
+        console.log('Cloudinary deletion result:', deleteResult);
+      } catch (error) {
+        console.error('Error deleting file from Cloudinary:', error);
+        // Continue with database deletion even if Cloudinary deletion fails
+      }
+    } else {
+      console.warn('Could not extract public ID from URL:', media.url);
     }
 
     // Delete from database
@@ -829,5 +1026,44 @@ export class TalentService {
     }
 
     return updatedTalent;
+  }
+
+  /**
+   * Update a talent's profile picture
+   * @param talentId The ID of the talent
+   * @param file The profile picture file to upload
+   * @returns Updated talent with new profile picture URL
+   */
+  async updateProfilePicture(
+    talentId: string,
+    file: Express.Multer.File,
+  ): Promise<Talent> {
+    // Check if talent exists
+    const talent = await this.prisma.talent.findUnique({
+      where: { talentId },
+    });
+
+    if (!talent) {
+      throw new NotFoundException(`Talent with ID ${talentId} not found`);
+    }
+
+    // Upload profile picture to Cloudinary
+    try {
+      const uploadResult = await this.cloudinaryService.uploadProfilePicture(
+        file,
+        talentId,
+      );
+
+      // Update talent profile with new profile picture URL
+      return this.prisma.talent.update({
+        where: { talentId },
+        data: {
+          talentProfilePicture: uploadResult.url,
+        },
+      });
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      throw new BadRequestException('Failed to upload profile picture');
+    }
   }
 }

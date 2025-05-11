@@ -39,12 +39,12 @@ import { toast } from 'sonner';
 
 interface Talent {
   talentId: string;
-  firsName: string;
+  firstName: string;
   lastName: string;
   talentProfilePicture: string;
   generalCategory: string;
   specificCategory: string;
-  ServiceName: string;
+  serviceName: string;
   address: string;
   phoneNumber: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -211,14 +211,14 @@ export default function TalentApprovalPage() {
                   <div className="flex items-center">
                     <Image
                       src={talent.talentProfilePicture}
-                      alt={`${talent.firsName} ${talent.lastName}`}
+                      alt={`${talent.firstName} ${talent.lastName}`}
                       width={40}
                       height={40}
                       className="rounded-full mr-3"
                     />
                     <div>
                       <CardTitle className="text-xl">
-                        {talent.firsName} {talent.lastName}
+                        {talent.firstName} {talent.lastName}
                       </CardTitle>
                       <CardDescription className="flex items-center mt-1">
                         <User className="w-4 h-4 mr-1" />
