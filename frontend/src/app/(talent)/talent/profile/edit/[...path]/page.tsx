@@ -21,6 +21,7 @@ export default function CatchAllProfileEditPage() {
       'videos',
       'audio',
       'details',
+      'calendar',
     ];
 
     // No matter what path is provided, redirect to the main edit page

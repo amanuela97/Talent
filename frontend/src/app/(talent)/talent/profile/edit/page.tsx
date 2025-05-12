@@ -11,6 +11,7 @@ import PhotosEditor from '@/components/custom/talent/edit/Photos';
 import VideosEditor from '@/components/custom/talent/edit/Videos';
 import AudioEditor from '@/components/custom/talent/edit/Audio';
 import DetailsEditor from '@/components/custom/talent/edit/Details';
+import CalendarEditor from '@/components/custom/talent/edit/Calendar';
 import { useTalentProfile } from '@/hooks/useTalentProfile';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -47,6 +48,7 @@ export default function ProfileDashboardPage() {
       'videos',
       'audio',
       'details',
+      'calendar',
     ];
 
     if (sectionParam && validSections.includes(sectionParam)) {
@@ -69,43 +71,55 @@ export default function ProfileDashboardPage() {
     }
   }, [activeSection, initialLoading]);
 
+  // Helper function to set active section and scroll to top
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Define navigation items with click handlers
   const navigationItems = [
     {
       label: 'Profile Overview',
       href: '/talent/profile/edit/overview',
       active: activeSection === 'overview',
-      onClick: () => setActiveSection('overview'),
+      onClick: () => handleSectionChange('overview'),
     },
     {
       label: 'General Info',
       href: '/talent/profile/edit/general',
       active: activeSection === 'general',
-      onClick: () => setActiveSection('general'),
+      onClick: () => handleSectionChange('general'),
     },
     {
       label: 'Photos',
       href: '/talent/profile/edit/photos',
       active: activeSection === 'photos',
-      onClick: () => setActiveSection('photos'),
+      onClick: () => handleSectionChange('photos'),
     },
     {
       label: 'Videos',
       href: '/talent/profile/edit/videos',
       active: activeSection === 'videos',
-      onClick: () => setActiveSection('videos'),
+      onClick: () => handleSectionChange('videos'),
     },
     {
       label: 'Audio',
       href: '/talent/profile/edit/audio',
       active: activeSection === 'audio',
-      onClick: () => setActiveSection('audio'),
+      onClick: () => handleSectionChange('audio'),
     },
     {
       label: 'Details',
       href: '/talent/profile/edit/details',
       active: activeSection === 'details',
-      onClick: () => setActiveSection('details'),
+      onClick: () => handleSectionChange('details'),
+    },
+    {
+      label: 'Calendar',
+      href: '/talent/profile/edit/calendar',
+      active: activeSection === 'calendar',
+      onClick: () => handleSectionChange('calendar'),
     },
   ];
 
@@ -321,7 +335,7 @@ export default function ProfileDashboardPage() {
       case 'overview':
         return (
           <ProfileOverviewEditor
-            setActiveSection={setActiveSection}
+            setActiveSection={handleSectionChange}
             talent={talent}
             images={
               talent ? talent.media.filter((m) => m.type === 'IMAGE') : []
@@ -402,6 +416,9 @@ export default function ProfileDashboardPage() {
             onSubmit={handleDetailsUpdate}
           />
         );
+
+      case 'calendar':
+        return <CalendarEditor talentId={talent.talentId} />;
 
       default:
         return null;

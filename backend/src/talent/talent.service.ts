@@ -9,9 +9,18 @@ import {
 import * as crypto from 'crypto';
 import { CreateTalentDto } from './dto/create-talent.dto';
 import { UpdateTalentDto } from './dto/update-talent.dto';
+import { CreateCalendarEventDto } from './dto/create-calendar-event.dto';
+import { UpdateCalendarEventDto } from './dto/update-calendar-event.dto';
 import { PrismaService } from 'src/prisma.service';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
-import { MediaType, Talent, Role, Media, Prisma } from '@prisma/client';
+import {
+  MediaType,
+  Talent,
+  Role,
+  Media,
+  Prisma,
+  CalendarEvent,
+} from '@prisma/client';
 import { MailService } from 'src/mail/mail.service';
 
 interface MediaFiles {
@@ -1065,5 +1074,180 @@ export class TalentService {
       console.error('Error uploading profile picture:', error);
       throw new BadRequestException('Failed to upload profile picture');
     }
+  }
+
+  /**
+   * Create a calendar event for a talent
+   * @param talentId Talent's ID
+   * @param createCalendarEventDto Calendar event data
+   * @returns Created calendar event
+   */
+  async createCalendarEvent(
+    talentId: string,
+    createCalendarEventDto: CreateCalendarEventDto,
+  ): Promise<CalendarEvent> {
+    // Verify talent exists
+    const talent = await this.prisma.talent.findUnique({
+      where: { talentId },
+    });
+
+    if (!talent) {
+      throw new NotFoundException(`Talent with ID ${talentId} not found`);
+    }
+
+    // Create the event
+    if (
+      !this.prisma ||
+      typeof this.prisma.calendarEvent?.create !== 'function'
+    ) {
+      throw new InternalServerErrorException(
+        'Prisma service or calendarEvent is not initialized properly',
+      );
+    }
+
+    return await this.prisma.calendarEvent.create({
+      data: {
+        talentId,
+        type: createCalendarEventDto.type,
+        title: createCalendarEventDto.title,
+        start: new Date(createCalendarEventDto.start),
+        end: new Date(createCalendarEventDto.end),
+        color: createCalendarEventDto.color,
+        clientName: createCalendarEventDto.clientName,
+        isAllDay: createCalendarEventDto.isAllDay || false,
+      },
+    });
+  }
+
+  /**
+   * Get all calendar events for a talent
+   * @param talentId Talent's ID
+   * @param startDate Optional start date to filter events
+   * @param endDate Optional end date to filter events
+   * @returns List of calendar events
+   */
+  async getCalendarEvents(
+    talentId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<CalendarEvent[]> {
+    // Build the where clause with proper typing
+    const whereClause: Prisma.CalendarEventWhereInput = { talentId };
+
+    // Add date filters if provided
+    if (startDate || endDate) {
+      const dateConditions: Prisma.CalendarEventWhereInput[] = [];
+
+      if (startDate && endDate) {
+        // Events that overlap with the date range
+        dateConditions.push({
+          AND: [
+            { start: { lte: new Date(endDate) } },
+            { end: { gte: new Date(startDate) } },
+          ],
+        });
+      } else if (startDate) {
+        dateConditions.push({ start: { gte: new Date(startDate) } });
+      } else if (endDate) {
+        dateConditions.push({ end: { lte: new Date(endDate) } });
+      }
+
+      if (dateConditions.length > 0) {
+        whereClause.OR = dateConditions;
+      }
+    }
+
+    // Fetch events
+    return await this.prisma.calendarEvent.findMany({
+      where: whereClause,
+      orderBy: { start: 'asc' },
+    });
+  }
+
+  /**
+   * Get a specific calendar event by ID
+   * @param id Event ID
+   * @returns Calendar event or null if not found
+   */
+  async getCalendarEvent(id: string): Promise<CalendarEvent | null> {
+    return await this.prisma.calendarEvent.findUnique({
+      where: { id },
+    });
+  }
+
+  /**
+   * Update a calendar event
+   * @param id Event ID
+   * @param updateCalendarEventDto Updated event data
+   * @returns Updated calendar event
+   */
+  async updateCalendarEvent(
+    id: string,
+    updateCalendarEventDto: UpdateCalendarEventDto,
+  ): Promise<CalendarEvent> {
+    // Check if event exists
+    const event = await this.prisma.calendarEvent.findUnique({
+      where: { id },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Calendar event with ID ${id} not found`);
+    }
+
+    // Build update data with proper types
+    const updateData: Prisma.CalendarEventUpdateInput = {};
+
+    if (updateCalendarEventDto.type !== undefined) {
+      updateData.type = updateCalendarEventDto.type;
+    }
+
+    if (updateCalendarEventDto.title !== undefined) {
+      updateData.title = updateCalendarEventDto.title;
+    }
+
+    if (updateCalendarEventDto.start !== undefined) {
+      updateData.start = new Date(updateCalendarEventDto.start);
+    }
+
+    if (updateCalendarEventDto.end !== undefined) {
+      updateData.end = new Date(updateCalendarEventDto.end);
+    }
+
+    if (updateCalendarEventDto.color !== undefined) {
+      updateData.color = updateCalendarEventDto.color;
+    }
+
+    if (updateCalendarEventDto.clientName !== undefined) {
+      updateData.clientName = updateCalendarEventDto.clientName;
+    }
+
+    if (updateCalendarEventDto.isAllDay !== undefined) {
+      updateData.isAllDay = updateCalendarEventDto.isAllDay;
+    }
+
+    return this.prisma.calendarEvent.update({
+      where: { id },
+      data: updateData,
+    });
+  }
+
+  /**
+   * Delete a calendar event
+   * @param id Event ID
+   * @returns Deleted calendar event
+   */
+  async deleteCalendarEvent(id: string): Promise<CalendarEvent> {
+    // Check if event exists
+    const event = await this.prisma.calendarEvent.findUnique({
+      where: { id },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Calendar event with ID ${id} not found`);
+    }
+
+    return this.prisma.calendarEvent.delete({
+      where: { id },
+    });
   }
 }

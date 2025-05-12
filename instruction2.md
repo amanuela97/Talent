@@ -1,11 +1,36 @@
-- I have created a /talent/profile/edit page where a user can edit their profile
-- The page has a ProfileSidebar component which include an image and a side navigation and it should act as a layout that is always visible on the page.
-- When the navigation changes dynamically display new components instead of creating an actual page. Also the url should reflect each navigation. for instance if user navigate on the page directly to /talent/profile/edit/general, then the General info should be displayed on the page along side the layout ProfileSidebar.
-- The navigation should include ["Profile Overview", "General Info", "Photos", "Videos", "Audio", "Details"]
-- the "Profile Overview" is the default component displayed when navigating to talent/profile/edit and the url should be changed to talent/profile/edit/overview. The component ProfileOverviewEditor should be shown.
-- Make sure to update ProfileOverviewEditor to show real data. The ProfileOverviewEditor component shows the state of talents provided field data. For instance if the users has less images, videos, or audio than the recommended amount then the UI would shows a warning icon with a message encouraging the user to add more images etc. The recommended ammount should be at least 4 images but max 10 for the gallery, at least 2 videos but no more than 4, and at least 2 audio files but max 10 allowed.
-- If the users is missing or has no photos, videos, or audio then show a red warning sign on the ProfileOverviewEditor indicating what they are missing.
-- If every required field is provided and the recommended ammount images, videos, or audio is set already then show a green tick icon with a message.
-- When navigating to "General Info" component/page the user should have appropriate UI to edit these fields firstName, lastName, phoneNumber, address, city, bio, generalCategory, specificCategory and serviceName.
-- When navigating to "Details" component/page the user should have appropriate UI to edit these fields services, hourlyRate, availability, languagesSpoken, and socialLinks.
-- The same for "video", "Photos", and "Audio". But make sure the talentProfilePicture field is also updated on the "Photos" component/page but should have a seperate UI than the UI for uploading to the image gallery.
+- Build a calendar component that integrates with the existing weekly availability logic and extends into event-based interaction (like setting unavailability, booking/events, or other statuses), here's a complete breakdown
+
+- Recommended Calendar Library "FullCalendar"
+- Events will be color-coded to help easily identify the type of calendar entry
+- Here is an example of what the model could look like but you can create a different one if a better model exists.
+  model CalendarEvent {
+  id String @id @default(uuid())
+  talentId String
+  type String // "available" | "unavailable" | "booked" | etc.
+  title String
+  start DateTime
+  end DateTime
+  color String? // For frontend customization
+  talent Talent @relation(fields: [talentId], references: [id])
+  createdAt DateTime @default(now())
+  }
+
+- Make sure to create the API routes or endpoints and implement the backend logic as well.
+
+- Here is how to "Add new events"
+- 1 Click in the white space of the specific date or time you want to add to (or click and drag to make multiple selections).
+- 2 Select the "Add a new event" option.
+- 3 Enter the event title, client's name (optional), dates, and start and end times, or choose All-day event if you want to cover all 24 hours.
+  Note: The client's name will not be displayed publicly. This is only included to help you more easily distinguish between events.
+- 4 Click Add to <date> to create a single event, or Add to multiple dates to create a repeating event.
+
+- Here is how to "Add unavailability"
+- 1 Click in the white space of the specific date or time you want to add to (or click and drag to make multiple selections).
+
+- 2 Select the "Add unavailability" option.
+
+- 3 Enter a title (optional), the dates, and the start and end times, or choose All-day event if you want to cover all 24 hours.
+
+- 4 Click Add to <date> to add one day of unavailability, or Add to multiple dates to add repeating unavailability.
+
+- Lastly, add the "Calendar" component as a section in the "Details" component once complete.

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, X } from 'lucide-react';
 
 interface DetailsEditorProps {
@@ -32,6 +32,7 @@ export default function DetailsEditor({
   const [availabilityData, setAvailabilityData] = useState<
     Record<string, string[]>
   >(availability || {});
+  const [dayAvailable, setDayAvailable] = useState<Record<string, boolean>>({});
   const [languages, setLanguages] = useState(languagesSpoken || []);
   const [links, setLinks] = useState(socialLinks || {});
   const [newService, setNewService] = useState('');
@@ -39,14 +40,33 @@ export default function DetailsEditor({
   const [newSocialPlatform, setNewSocialPlatform] = useState('');
   const [newSocialUrl, setNewSocialUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const daysOfWeek = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ];
 
-  // Initialize props safely if they change
+  // Initialize props and day availability state safely if they change
   useEffect(() => {
     if (services) setServiceList(services);
     if (hourlyRate !== undefined) setRate(hourlyRate);
-    if (availability) setAvailabilityData(availability);
+    if (availability) {
+      setAvailabilityData(availability);
+
+      // Initialize day availability based on whether the day exists in the availability object
+      const availableDays: Record<string, boolean> = {};
+      daysOfWeek.forEach((day) => {
+        availableDays[day] = !!availability[day];
+      });
+      setDayAvailable(availableDays);
+    }
     if (languagesSpoken) setLanguages(languagesSpoken);
     if (socialLinks) setLinks(socialLinks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [services, hourlyRate, availability, languagesSpoken, socialLinks]);
 
   // Handle services
@@ -91,6 +111,22 @@ export default function DetailsEditor({
     setLinks(newLinks);
   };
 
+  // Handle availability checkbox change
+  const handleAvailabilityCheckboxChange = (day: string, checked: boolean) => {
+    setDayAvailable((prev) => ({ ...prev, [day]: checked }));
+
+    // If the day is being marked as available but doesn't have times yet (or was previously removed),
+    // initialize with empty times or restore from backup
+    if (checked && !availabilityData[day]) {
+      setAvailabilityData((prev) => ({
+        ...prev,
+        [day]: ['', ''],
+      }));
+    }
+    // Note: We don't remove the day from availabilityData when unchecked
+    // This preserves the time values when the checkbox is toggled
+  };
+
   // Handle availability
   const handleAvailabilityChange = (
     day: string,
@@ -107,13 +143,6 @@ export default function DetailsEditor({
         newTimes[1] = value;
       }
 
-      // If both values are empty, remove the day from availability
-      if (newTimes[0] === '' && newTimes[1] === '') {
-        const newAvailability = { ...prev };
-        delete newAvailability[day];
-        return newAvailability;
-      }
-
       return {
         ...prev,
         [day]: newTimes,
@@ -126,10 +155,20 @@ export default function DetailsEditor({
     setSubmitting(true);
 
     try {
+      // Filter out days that are unchecked before submitting
+      const filteredAvailability: Record<string, string[]> = {};
+
+      // Only include days where the checkbox is checked
+      Object.keys(availabilityData).forEach((day) => {
+        if (dayAvailable[day]) {
+          filteredAvailability[day] = availabilityData[day];
+        }
+      });
+
       await onSubmit({
         services: serviceList,
         hourlyRate: rate,
-        availability: availabilityData,
+        availability: filteredAvailability,
         languagesSpoken: languages,
         socialLinks: links,
       });
@@ -139,16 +178,6 @@ export default function DetailsEditor({
       setSubmitting(false);
     }
   };
-
-  const daysOfWeek = [
-    'monday',
-    'tuesday',
-    'wednesday',
-    'thursday',
-    'friday',
-    'saturday',
-    'sunday',
-  ];
 
   return (
     <div className="flex-1 p-6">
@@ -236,10 +265,27 @@ export default function DetailsEditor({
                 return (
                   <div
                     key={day}
-                    className="grid grid-cols-3 gap-3 items-center"
+                    className="grid grid-cols-4 gap-3 items-center"
                   >
-                    <div className="capitalize">{day}</div>
-                    <div className="col-span-2 flex items-center gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`available-${day}`}
+                        checked={dayAvailable[day] || false}
+                        onCheckedChange={(checked) =>
+                          handleAvailabilityCheckboxChange(
+                            day,
+                            checked === true
+                          )
+                        }
+                      />
+                      <label
+                        htmlFor={`available-${day}`}
+                        className="text-sm capitalize cursor-pointer"
+                      >
+                        {day}
+                      </label>
+                    </div>
+                    <div className="col-span-3 flex items-center gap-2">
                       <Input
                         type="time"
                         value={dayAvailability[0] || ''}
@@ -247,6 +293,7 @@ export default function DetailsEditor({
                           handleAvailabilityChange(day, 'start', e.target.value)
                         }
                         className="cursor-pointer"
+                        disabled={!dayAvailable[day]}
                       />
                       <span>to</span>
                       <Input
@@ -256,6 +303,7 @@ export default function DetailsEditor({
                           handleAvailabilityChange(day, 'end', e.target.value)
                         }
                         className="cursor-pointer"
+                        disabled={!dayAvailable[day]}
                       />
                     </div>
                   </div>

@@ -74,6 +74,7 @@ model Talent {
   reviews             Review[]
   user                User       @relation(fields: [talentId], references: [userId])
   favoriteByCustomers Customer[] @relation("FavoriteTalents")
+  calendarEvents      CalendarEvent[]
 }
 
 enum TalentStatus {
@@ -205,4 +206,26 @@ model MessageReadStatus {
   user       User      @relation(fields: [userId], references: [userId])
 
   @@unique([messageId, userId]) // prevent duplicate read tracking
+}
+
+enum CalendarEventType {
+  AVAILABLE
+  UNAVAILABLE
+  BOOKED
+}
+
+
+model CalendarEvent {
+  id        String    @id @default(uuid())
+  talentId  String
+  type      CalendarEventType    // "available" | "unavailable" | "booked" | etc.
+  title     String
+  start     DateTime
+  end       DateTime
+  color     String?   // For frontend customization
+  clientName String?  // Optional client name for private reference
+  isAllDay  Boolean   @default(false)
+  talent    Talent    @relation(fields: [talentId], references: [talentId])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
