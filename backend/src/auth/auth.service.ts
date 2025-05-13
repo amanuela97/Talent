@@ -333,7 +333,7 @@ export class AuthService {
     });
   }
 
-  private async generateTokens(payload: UserPayload): Promise<TokenResponse> {
+  async generateTokens(payload: UserPayload): Promise<TokenResponse> {
     const jwtSecretKey = this.configService.get<string>('jwtSecretKey');
     const jwtRefreshTokenKey =
       this.configService.get<string>('jwtRefreshTokenKey');

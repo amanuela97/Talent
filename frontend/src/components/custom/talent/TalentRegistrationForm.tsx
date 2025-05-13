@@ -17,6 +17,7 @@ import ServiceNameStep from './steps/ServiceNameStep';
 import AddressStep from './steps/AddressStep';
 import PhoneNumberStep from './steps/PhoneNumberStep';
 import ReviewStep from './steps/ReviewStep';
+import { isAxiosError } from 'axios';
 
 // Form schema
 const formSchema = z.object({
@@ -25,6 +26,7 @@ const formSchema = z.object({
   }),
   firstName: z.string().min(2, 'First name is required'),
   lastName: z.string().min(2, 'Last name is required'),
+  email: z.string().email('Valid email is required'),
   generalCategory: z.string().min(1, 'General category is required'),
   specificCategory: z.string().min(1, 'Specific category is required'),
   serviceName: z.string().min(3, 'Service name is required'),
@@ -55,6 +57,7 @@ export default function TalentRegistrationForm({
     defaultValues: {
       firstName: '',
       lastName: '',
+      email: session?.user?.email || '',
       generalCategory: '',
       specificCategory: '',
       serviceName: '',
@@ -68,7 +71,7 @@ export default function TalentRegistrationForm({
 
   // Fields to validate at each step
   const stepValidationFields = [
-    ['profilePicture', 'firstName', 'lastName'],
+    ['profilePicture', 'firstName', 'lastName', 'email'],
     ['generalCategory'],
     ['specificCategory'],
     ['serviceName'],
@@ -105,12 +108,14 @@ export default function TalentRegistrationForm({
       const formData = new FormData();
       formData.append('firstName', data.firstName);
       formData.append('lastName', data.lastName);
+      formData.append('email', data.email);
       formData.append('generalCategory', data.generalCategory);
       formData.append('specificCategory', data.specificCategory);
       formData.append('serviceName', data.serviceName);
       formData.append('address', data.address);
       formData.append('phoneNumber', data.phoneNumber);
       formData.append('verificationToken', verificationToken);
+      formData.append('isEmailVerified', 'true');
 
       // Add profile picture to form data
       if (data.profilePicture) {
@@ -128,7 +133,6 @@ export default function TalentRegistrationForm({
           },
         });
       } else {
-        formData.append('isEmailVerified', 'false');
         // Create new talent profile
         await axiosInstance.post(`/talents/profile/${userId}`, formData, {
           headers: {
@@ -149,8 +153,13 @@ export default function TalentRegistrationForm({
       // Redirect to verification page
       router.push('/join/verify');
     } catch (error) {
-      console.error('Error creating/updating talent profile:', error);
-      alert('Failed to process talent profile. Please try again.');
+      const errorMessage = isAxiosError(error)
+        ? error.response?.data?.message
+        : 'Error creating/updating talent profile';
+      console.error(errorMessage, error);
+      alert(
+        errorMessage || 'Failed to process talent profile. Please try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -196,7 +205,26 @@ export default function TalentRegistrationForm({
       </div>
 
       <FormProvider {...methods}>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form
+          // Remove the onSubmit handler from the form element
+          // We'll manually trigger submission when the submit button is clicked
+          onSubmit={(e) => {
+            // Only allow submission on the last step
+            if (currentStep !== steps.length - 1) {
+              e.preventDefault();
+            }
+          }}
+          onKeyDown={(e) => {
+            // Prevent form submission on Enter key press
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              // Optionally, if on a non-final step, go to next step when Enter is pressed
+              if (currentStep !== steps.length - 1) {
+                goToNextStep();
+              }
+            }
+          }}
+        >
           {steps[currentStep]}
 
           <div className="flex justify-between mt-8">
@@ -217,9 +245,16 @@ export default function TalentRegistrationForm({
               </Button>
             ) : (
               <Button
-                type="submit"
+                type="button"
                 className="ml-auto bg-orange-500 hover:bg-orange-600"
                 disabled={isSubmitting}
+                onClick={() => {
+                  // Manually trigger form submission only when on the last step
+                  // This ensures the form is only submitted when the user explicitly clicks the Submit button
+                  if (currentStep === steps.length - 1) {
+                    handleSubmit(onSubmit)();
+                  }
+                }}
               >
                 {isSubmitting
                   ? 'Submitting...'

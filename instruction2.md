@@ -1,36 +1,90 @@
-- Build a calendar component that integrates with the existing weekly availability logic and extends into event-based interaction (like setting unavailability, booking/events, or other statuses), here's a complete breakdown
+1. Explore All Talent. /talents
+   Purpose: Acts as the main discovery or “marketplace” page where customers browse all available talents.
 
-- Recommended Calendar Library "FullCalendar"
-- Events will be color-coded to help easily identify the type of calendar entry
-- Here is an example of what the model could look like but you can create a different one if a better model exists.
-  model CalendarEvent {
-  id String @id @default(uuid())
-  talentId String
-  type String // "available" | "unavailable" | "booked" | etc.
-  title String
-  start DateTime
-  end DateTime
-  color String? // For frontend customization
-  talent Talent @relation(fields: [talentId], references: [id])
-  createdAt DateTime @default(now())
-  }
+Functionality to include:
 
-- Make sure to create the API routes or endpoints and implement the backend logic as well.
+Search by keyword (e.g., name, category, service)
 
-- Here is how to "Add new events"
-- 1 Click in the white space of the specific date or time you want to add to (or click and drag to make multiple selections).
-- 2 Select the "Add a new event" option.
-- 3 Enter the event title, client's name (optional), dates, and start and end times, or choose All-day event if you want to cover all 24 hours.
-  Note: The client's name will not be displayed publicly. This is only included to help you more easily distinguish between events.
-- 4 Click Add to <date> to create a single event, or Add to multiple dates to create a repeating event.
+- Filter by:
 
-- Here is how to "Add unavailability"
-- 1 Click in the white space of the specific date or time you want to add to (or click and drag to make multiple selections).
+General Category (e.g., Photographer, Musician)
 
-- 2 Select the "Add unavailability" option.
+Specific Services (e.g., Wedding Photographer)
 
-- 3 Enter a title (optional), the dates, and the start and end times, or choose All-day event if you want to cover all 24 hours.
+City or Location
 
-- 4 Click Add to <date> to add one day of unavailability, or Add to multiple dates to add repeating unavailability.
+Languages spoken
 
-- Lastly, add the "Calendar" component as a section in the "Details" component once complete.
+Hourly rate range
+
+Availability (optional)
+
+- Sort by:
+
+Newest
+
+Most reviewed / Highest rated
+
+- Pagination
+
+2. View Individual Talent Profile
+   /talents/[username]
+   Purpose: Displays the full public profile of a single talent, similar to a freelancer profile on Fiverr or Upwork.
+
+Functionality to include:
+
+Talent profile picture, bio, categories
+
+Service offerings (from services field)
+
+Availability (show weekly availability and calendar)
+
+Embedded portfolio (images, videos, audios)
+
+Social links (from socialLinks)
+
+Option to contact or request booking (even if simple for now)
+
+Public reviews if you plan to implement later
+
+3. “Customer” Functionality Suggestions
+   To go beyond just displaying data, here are the top features to prioritize for customers:
+
+- Contact Talent
+  Simple form: name, email, message
+
+Store/send to talent or email directly
+
+- Request a Gig / Booking
+  A form that lets a customer propose a gig:
+
+Date and time
+
+Type of service
+
+Location
+
+Budget
+
+Optional message
+
+Stored as a GigRequest model (you can add this to your schema later)
+
+- Save Favorite Talents
+  If customers can log in, let them bookmark talents for later
+
+- Talent Availability Viewer
+  Optionally show:
+
+Available days/hours (converted from availability JSON)
+
+Visual calendar (read-only)
+
+---
+
+4. Optional Backend Considerations
+   Index talents by location and category for fast filtering
+
+Make sure only published talents are visible (isPublic field = true)
+
+Consider slugified usernames or profile URLs for SEO: /talents/nabeel-baig instead of /talents/clxv3

@@ -13,6 +13,7 @@ export interface Talent {
   talentId: string;
   firstName: string;
   lastName: string;
+  email: string;
   talentProfilePicture: string;
   generalCategory: string;
   specificCategory: string;

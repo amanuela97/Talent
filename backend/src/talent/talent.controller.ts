@@ -81,6 +81,7 @@ export class TalentController {
       properties: {
         firstName: { type: 'string' },
         lastName: { type: 'string' },
+        email: { type: 'string' },
         generalCategory: { type: 'string' },
         specificCategory: { type: 'string' },
         serviceName: { type: 'string' },
@@ -136,6 +137,7 @@ export class TalentController {
       required: [
         'firstName',
         'lastName',
+        'email',
         'generalCategory',
         'specificCategory',
         'serviceName',
@@ -161,10 +163,10 @@ export class TalentController {
     if (!files.profilePicture || files.profilePicture.length === 0) {
       throw new BadRequestException('Profile picture is required');
     }
-
     const talentData: CreateTalentDto = {
       firstName: createTalentDto.firstName,
       lastName: createTalentDto.lastName,
+      email: createTalentDto.email,
       generalCategory: createTalentDto.generalCategory,
       specificCategory: createTalentDto.specificCategory,
       serviceName: createTalentDto.serviceName,
@@ -413,9 +415,11 @@ export class TalentController {
 
     if (updateTalentDto.firstName !== undefined)
       talentData.firstName = updateTalentDto.firstName;
-
     if (updateTalentDto.lastName !== undefined)
       talentData.lastName = updateTalentDto.lastName;
+
+    if (updateTalentDto.email !== undefined)
+      talentData.email = updateTalentDto.email;
 
     if (updateTalentDto.generalCategory !== undefined)
       talentData.generalCategory = updateTalentDto.generalCategory;
@@ -651,8 +655,6 @@ export class TalentController {
       audios?: Express.Multer.File[];
     },
   ) {
-    console.log('Received files:', files);
-
     const mediaFiles = {
       profilePicture: files.profilePicture?.[0],
       images: files.images || [],
@@ -783,7 +785,6 @@ export class TalentController {
 
   // Add this endpoint to your TalentController
   @Get('admin/pending')
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiBearerAuth()
@@ -800,9 +801,7 @@ export class TalentController {
     });
   }
 
-  // Add this endpoint to your TalentController
   @Patch(':id/status')
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('ADMIN')
   @ApiBearerAuth()

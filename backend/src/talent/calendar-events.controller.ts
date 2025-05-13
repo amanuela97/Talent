@@ -31,7 +31,6 @@ export class CalendarEventsController {
     @Request() req: { user: { role: Role; userId: string } },
   ) {
     // For talents, verify they own this profile
-    console.log(req.user.userId, talentId);
     if (req.user.role === Role.TALENT && req.user.userId !== talentId) {
       return { message: 'Unauthorized', statusCode: 403 };
     }

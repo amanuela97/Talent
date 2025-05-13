@@ -3,6 +3,7 @@ import { TalentStatus } from '@prisma/client';
 export class CreateTalentDto {
   firstName: string;
   lastName: string;
+  email: string; // Added email field
   generalCategory: string;
   specificCategory: string;
   serviceName: string;

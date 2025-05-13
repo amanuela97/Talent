@@ -88,12 +88,11 @@ export class TalentService {
   private buildTalentUpdateData(
     updateTalentDto: UpdateTalentDto,
   ): Prisma.TalentUpdateInput {
-    const updateData: Prisma.TalentUpdateInput = {};
-
-    // Map all fields that can be directly assigned
+    const updateData: Prisma.TalentUpdateInput = {}; // Map all fields that can be directly assigned
     const directFields = [
       'firstName',
       'lastName',
+      'email',
       'generalCategory',
       'specificCategory',
       'serviceName',
@@ -293,14 +292,13 @@ export class TalentService {
         console.error('Error uploading profile picture:', error);
         throw new BadRequestException('Failed to upload profile picture');
       }
-    }
-
-    // Create talent profile with the profile picture URL
+    } // Create talent profile with the profile picture URL
     const talent = await this.prisma.talent.create({
       data: {
         talentId: userId,
         firstName: createTalentDto.firstName,
         lastName: createTalentDto.lastName,
+        email: createTalentDto.email,
         talentProfilePicture: profilePictureUrl, // Set the profile picture URL
         generalCategory: createTalentDto.generalCategory,
         specificCategory: createTalentDto.specificCategory,
@@ -1009,6 +1007,16 @@ export class TalentService {
         data: updateData,
       }),
     );
+
+    // Update the user role to TALENT if status is APPROVED
+    if (status === 'APPROVED') {
+      await this.prisma.safeQuery(() =>
+        this.prisma.user.update({
+          where: { userId: talent.talentId },
+          data: { role: Role.TALENT },
+        }),
+      );
+    }
 
     // Get user email for notifications
     const user = await this.prisma.safeQuery(() =>

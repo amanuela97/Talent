@@ -11,6 +11,7 @@ interface GeneralInfoEditorProps {
   address: string;
   city: string;
   bio: string;
+  email: string;
   generalCategory: string;
   specificCategory: string;
   serviceName: string;
@@ -24,6 +25,7 @@ type GeneralInfoFormData = {
   address: string;
   city: string;
   bio: string;
+  email: string;
   generalCategory: string;
   specificCategory: string;
   serviceName: string;
@@ -36,6 +38,7 @@ export default function GeneralInfoEditor({
   address,
   city,
   bio,
+  email,
   generalCategory,
   specificCategory,
   serviceName,
@@ -48,6 +51,7 @@ export default function GeneralInfoEditor({
     address,
     city,
     bio,
+    email,
     generalCategory,
     specificCategory,
     serviceName,
@@ -123,6 +127,19 @@ export default function GeneralInfoEditor({
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 placeholder="Your phone number"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Your email address"
                 required
               />
             </div>

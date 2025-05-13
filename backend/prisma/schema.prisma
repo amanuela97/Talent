@@ -51,12 +51,13 @@ model Talent {
   talentProfilePicture String
   generalCategory     String  
   specificCategory    String
-  serviceName         String
+  serviceName         String     @unique
   address             String
   phoneNumber         String
   bio                 String?  
   status              TalentStatus@default(PENDING)
   rejectionReason     String?    // Added to store reason for rejection
+  email               String     @unique
   isEmailVerified     Boolean     @default(false)
   verificationToken   String
   services            String[]    @default([])

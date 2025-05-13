@@ -270,7 +270,7 @@ export default function TalentApprovalPage() {
                   <p className="text-sm font-medium text-muted-foreground">
                     Service Name
                   </p>
-                  <p className="text-sm mt-1">{talent.ServiceName}</p>
+                  <p className="text-sm mt-1">{talent.serviceName}</p>
                 </div>
 
                 <div>

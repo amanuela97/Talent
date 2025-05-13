@@ -354,6 +354,7 @@ export default function ProfileDashboardPage() {
           <GeneralInfoEditor
             firstName={talent.firstName || ''}
             lastName={talent.lastName || ''}
+            email={talent.email || ''}
             phoneNumber={talent.phoneNumber || ''}
             address={talent.address || ''}
             city={talent.city || ''}

@@ -57,13 +57,15 @@ export default function ProfileOverviewEditor({
     talent.specificCategory &&
     talent.serviceName &&
     talent.address &&
-    talent.phoneNumber;
+    talent.phoneNumber &&
+    talent.city &&
+    talent.bio;
 
   const hasRequiredDetails =
     talent.services?.length > 0 &&
     talent.hourlyRate &&
-    talent.city &&
-    talent.bio;
+    talent.languagesSpoken.length > 0 &&
+    talent.availability;
 
   const hasEnoughImages = images.length >= 4;
   const hasTooManyImages = images.length > 10;

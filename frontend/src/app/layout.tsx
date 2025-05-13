@@ -21,6 +21,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Talent',
   description: 'Find performers for your next event',
+  icons: {
+    icon: '/assets/talent-logo.png',
+  },
 };
 
 export default async function RootLayout({

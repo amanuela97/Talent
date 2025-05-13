@@ -20,6 +20,10 @@ export class UpdateTalentDto {
 
   @IsOptional()
   @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
   generalCategory?: string;
 
   @IsOptional()

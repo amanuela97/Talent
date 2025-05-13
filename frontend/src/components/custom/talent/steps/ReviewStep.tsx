@@ -5,6 +5,7 @@ type FormValues = {
   profilePicture: File;
   firstName: string;
   lastName: string;
+  email: string;
   generalCategory: string;
   specificCategory: string;
   serviceName: string;
@@ -51,6 +52,11 @@ export default function ReviewStep({ formValues }: { formValues: FormValues }) {
               <p className="text-sm text-gray-500">Last Name</p>
               <p className="font-medium">{formValues.lastName}</p>
             </div>
+          </div>
+
+          <div>
+            <p className="text-sm text-gray-500">Email</p>
+            <p className="font-medium">{formValues.email}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
