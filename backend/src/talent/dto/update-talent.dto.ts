@@ -17,18 +17,19 @@ export class UpdateTalentDto {
   @IsOptional()
   @IsString()
   lastName?: string;
-
   @IsOptional()
   @IsString()
   email?: string;
 
   @IsOptional()
-  @IsString()
-  generalCategory?: string;
+  @IsArray()
+  @IsString({ each: true })
+  categories?: string[]; // Array of category IDs to associate with talent
 
   @IsOptional()
-  @IsString()
-  specificCategory?: string;
+  @IsArray()
+  @IsString({ each: true })
+  removedCategories?: string[]; // Category IDs to remove from talent
 
   @IsOptional()
   @IsString()

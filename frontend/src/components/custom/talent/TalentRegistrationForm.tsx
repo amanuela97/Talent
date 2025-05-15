@@ -1,37 +1,36 @@
-'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm, FormProvider } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { v4 as uuidv4 } from 'uuid';
-import axiosInstance from '@/app/utils/axios';
-import { useSession } from 'next-auth/react';
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import { v4 as uuidv4 } from "uuid";
+import axiosInstance from "@/app/utils/axios";
+import { useSession } from "next-auth/react";
 
 // Form steps
-import PersonalInfoStep from './steps/PersonalInfoStep';
-import GeneralCategoryStep from './steps/GeneralCategoryStep';
-import SpecificCategoryStep from './steps/SpecificCategoryStep';
-import ServiceNameStep from './steps/ServiceNameStep';
-import AddressStep from './steps/AddressStep';
-import PhoneNumberStep from './steps/PhoneNumberStep';
-import ReviewStep from './steps/ReviewStep';
-import { isAxiosError } from 'axios';
+import PersonalInfoStep from "./steps/PersonalInfoStep";
+import GeneralCategoryStep from "./steps/GeneralCategoryStep";
+import SpecificCategoryStep from "./steps/SpecificCategoryStep";
+import ServiceNameStep from "./steps/ServiceNameStep";
+import AddressStep from "./steps/AddressStep";
+import PhoneNumberStep from "./steps/PhoneNumberStep";
+import ReviewStep from "./steps/ReviewStep";
+import { isAxiosError } from "axios";
 
 // Form schema
 const formSchema = z.object({
   profilePicture: z.instanceof(File, {
-    message: 'Profile picture is required',
+    message: "Profile picture is required",
   }),
-  firstName: z.string().min(2, 'First name is required'),
-  lastName: z.string().min(2, 'Last name is required'),
-  email: z.string().email('Valid email is required'),
-  generalCategory: z.string().min(1, 'General category is required'),
-  specificCategory: z.string().min(1, 'Specific category is required'),
-  serviceName: z.string().min(3, 'Service name is required'),
-  address: z.string().min(5, 'Address is required'),
-  phoneNumber: z.string().min(10, 'Valid phone number is required'),
+  firstName: z.string().min(2, "First name is required"),
+  lastName: z.string().min(2, "Last name is required"),
+  email: z.string().email("Valid email is required"),
+  categories: z.array(z.any()).min(1, "At least one category is required"),
+  serviceName: z.string().min(3, "Service name is required"),
+  address: z.string().min(5, "Address is required"),
+  phoneNumber: z.string().min(10, "Valid phone number is required"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -55,39 +54,59 @@ export default function TalentRegistrationForm({
   const methods = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: session?.user?.email || '',
-      generalCategory: '',
-      specificCategory: '',
-      serviceName: '',
-      address: '',
-      phoneNumber: '',
+      firstName: "",
+      lastName: "",
+      email: session?.user?.email || "",
+      categories: [],
+      serviceName: "",
+      address: "",
+      phoneNumber: "",
     },
-    mode: 'onChange',
+    mode: "onChange",
   });
 
   const { handleSubmit, trigger, watch } = methods;
 
   // Fields to validate at each step
   const stepValidationFields = [
-    ['profilePicture', 'firstName', 'lastName', 'email'],
-    ['generalCategory'],
-    ['specificCategory'],
-    ['serviceName'],
-    ['address'],
-    ['phoneNumber'],
+    ["profilePicture", "firstName", "lastName", "email"],
+    ["categories"],
+    ["categories"],
+    ["serviceName"],
+    ["address"],
+    ["phoneNumber"],
     [], // No validation for review step
   ];
 
   // Go to next step after validation
   const goToNextStep = async () => {
     const fieldsToValidate = stepValidationFields[currentStep];
+    console.log("Validating fields:", fieldsToValidate);
+
+    // For the categories step, let's do a manual check first
+    if (currentStep === 1) {
+      // General Category step
+      const categories = watch("categories");
+      console.log("Current categories:", categories);
+
+      if (!categories || !categories.length || !categories[0]) {
+        console.log("No general category selected");
+        methods.setError("categories", {
+          type: "manual",
+          message: "Please select a general category",
+        });
+        return;
+      }
+    }
+
     const isValid = await trigger(fieldsToValidate as (keyof FormValues)[]);
+    console.log("Validation result:", isValid);
 
     if (isValid) {
       setCurrentStep((prev) => prev + 1);
       window.scrollTo(0, 0);
+    } else {
+      console.log("Validation errors:", methods.formState.errors);
     }
   };
 
@@ -106,44 +125,52 @@ export default function TalentRegistrationForm({
 
       // Create form data for multipart/form-data
       const formData = new FormData();
-      formData.append('firstName', data.firstName);
-      formData.append('lastName', data.lastName);
-      formData.append('email', data.email);
-      formData.append('generalCategory', data.generalCategory);
-      formData.append('specificCategory', data.specificCategory);
-      formData.append('serviceName', data.serviceName);
-      formData.append('address', data.address);
-      formData.append('phoneNumber', data.phoneNumber);
-      formData.append('verificationToken', verificationToken);
-      formData.append('isEmailVerified', 'true');
+      formData.append("firstName", data.firstName);
+      formData.append("lastName", data.lastName);
+      formData.append("email", data.email);
+
+      // Extract categories for submission
+      if (data.categories && data.categories.length > 0) {
+        // Convert categories array to JSON string for backend processing
+        formData.append(
+          "categories",
+          JSON.stringify(data.categories.map((cat) => cat.id))
+        );
+      }
+
+      formData.append("serviceName", data.serviceName);
+      formData.append("address", data.address);
+      formData.append("phoneNumber", data.phoneNumber);
+      formData.append("verificationToken", verificationToken);
+      formData.append("isEmailVerified", "true");
 
       // Add profile picture to form data
       if (data.profilePicture) {
-        formData.append('profilePicture', data.profilePicture);
+        formData.append("profilePicture", data.profilePicture);
       }
 
       // Status field (optional, but we want to be explicit)
-      formData.append('status', 'PENDING');
+      formData.append("status", "PENDING");
 
       if (isRejected && existingTalentId) {
         // Update existing talent profile for rejected talents
         await axiosInstance.patch(`/talents/${existingTalentId}`, formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         });
       } else {
         // Create new talent profile
         await axiosInstance.post(`/talents/profile/${userId}`, formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         });
       }
 
       if (isRejected && existingTalentId) {
         // Send verification email - use session email instead of localStorage
-        await axiosInstance.post('/auth/send-verification-email', {
+        await axiosInstance.post("/auth/send-verification-email", {
           email: session?.user?.email,
           verificationToken,
           name: `${data.firstName} ${data.lastName}`,
@@ -151,14 +178,14 @@ export default function TalentRegistrationForm({
       }
 
       // Redirect to verification page
-      router.push('/join/verify');
+      router.push("/join/verify");
     } catch (error) {
       const errorMessage = isAxiosError(error)
         ? error.response?.data?.message
-        : 'Error creating/updating talent profile';
+        : "Error creating/updating talent profile";
       console.error(errorMessage, error);
       alert(
-        errorMessage || 'Failed to process talent profile. Please try again.'
+        errorMessage || "Failed to process talent profile. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -169,10 +196,7 @@ export default function TalentRegistrationForm({
   const steps = [
     <PersonalInfoStep key="personal" />,
     <GeneralCategoryStep key="general" />,
-    <SpecificCategoryStep
-      key="specific"
-      generalCategory={watch('generalCategory')}
-    />,
+    <SpecificCategoryStep key="specific" />,
     <ServiceNameStep key="service" />,
     <AddressStep key="address" />,
     <PhoneNumberStep key="phone" />,
@@ -181,13 +205,13 @@ export default function TalentRegistrationForm({
 
   // Step titles
   const stepTitles = [
-    'Personal Information',
-    'General Category',
-    'Specific Category',
-    'Service Name',
-    'Address',
-    'Phone Number',
-    'Review & Submit',
+    "Personal Information",
+    "General Category",
+    "Specific Category",
+    "Service Name",
+    "Address",
+    "Phone Number",
+    "Review & Submit",
   ];
 
   return (
@@ -216,7 +240,7 @@ export default function TalentRegistrationForm({
           }}
           onKeyDown={(e) => {
             // Prevent form submission on Enter key press
-            if (e.key === 'Enter') {
+            if (e.key === "Enter") {
               e.preventDefault();
               // Optionally, if on a non-final step, go to next step when Enter is pressed
               if (currentStep !== steps.length - 1) {
@@ -257,10 +281,10 @@ export default function TalentRegistrationForm({
                 }}
               >
                 {isSubmitting
-                  ? 'Submitting...'
+                  ? "Submitting..."
                   : isRejected
-                  ? 'Resubmit'
-                  : 'Submit'}
+                  ? "Resubmit"
+                  : "Submit"}
               </Button>
             )}
           </div>

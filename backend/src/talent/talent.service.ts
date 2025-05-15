@@ -79,7 +79,6 @@ export class TalentService {
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailService: MailService, // Inject MailService
   ) {}
-
   /**
    * Helper method to update talent profile data from DTO
    * @param updateTalentDto DTO with talent update data
@@ -93,8 +92,6 @@ export class TalentService {
       'firstName',
       'lastName',
       'email',
-      'generalCategory',
-      'specificCategory',
       'serviceName',
       'address',
       'phoneNumber',
@@ -124,6 +121,9 @@ export class TalentService {
     ) {
       updateData.status = updateTalentDto.status;
     }
+
+    // Note: categories and removedCategories are handled separately in updateWithMedia
+    // They require special handling with assignCategoriesToTalent and removeCategoriesFromTalent
 
     return updateData;
   }
@@ -258,6 +258,96 @@ export class TalentService {
   }
 
   /**
+   * Assign categories to a talent
+   * @param talentId Talent ID
+   * @param categoryIds Array of category IDs to assign
+   * @returns Array of created TalentCategory relationships
+   */
+  private async assignCategoriesToTalent(
+    talentId: string,
+    categoryIds: string[],
+  ) {
+    // Validate the categories exist
+    const categories = await this.prisma.category.findMany({
+      where: {
+        id: { in: categoryIds },
+        status: 'ACTIVE',
+      },
+    });
+
+    if (categories.length !== categoryIds.length) {
+      const foundIds = categories.map((cat) => cat.id);
+      const missingIds = categoryIds.filter((id) => !foundIds.includes(id));
+      throw new BadRequestException(
+        `Categories not found or not active: ${missingIds.join(', ')}`,
+      );
+    }
+
+    // Create the talent-category relationships
+    const talentCategories = await this.prisma.safeQuery(() =>
+      Promise.all(
+        categoryIds.map((categoryId) =>
+          this.prisma.talentCategory.create({
+            data: {
+              talentId,
+              categoryId,
+            },
+          }),
+        ),
+      ),
+    );
+
+    return talentCategories;
+  }
+
+  /**
+   * Remove category assignments from a talent
+   * @param talentId Talent ID
+   * @param categoryIds Array of category IDs to remove
+   */
+  private async removeCategoriesFromTalent(
+    talentId: string,
+    categoryIds: string[],
+  ) {
+    await this.prisma.safeQuery(() =>
+      this.prisma.talentCategory.deleteMany({
+        where: {
+          talentId,
+          categoryId: {
+            in: categoryIds,
+          },
+        },
+      }),
+    );
+  }
+
+  /**
+   * Get all categories assigned to a talent
+   * @param talentId Talent ID
+   * @returns Array of categories with their details
+   */
+  private async getTalentCategories(talentId: string) {
+    const talentWithCategories = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId },
+        include: {
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      }),
+    );
+
+    if (!talentWithCategories) {
+      throw new NotFoundException(`Talent with ID ${talentId} not found`);
+    }
+
+    return talentWithCategories.categories.map((tc) => tc.category);
+  }
+
+  /**
    * Create a new talent profile with media files
    */
   async createWithMedia(
@@ -300,8 +390,6 @@ export class TalentService {
         lastName: createTalentDto.lastName,
         email: createTalentDto.email,
         talentProfilePicture: profilePictureUrl, // Set the profile picture URL
-        generalCategory: createTalentDto.generalCategory,
-        specificCategory: createTalentDto.specificCategory,
         serviceName: createTalentDto.serviceName,
         address: createTalentDto.address,
         phoneNumber: createTalentDto.phoneNumber,
@@ -320,6 +408,14 @@ export class TalentService {
         isOnline: createTalentDto.isOnline,
       },
     });
+
+    // Add categories if provided
+    if (createTalentDto.categories && createTalentDto.categories.length > 0) {
+      await this.assignCategoriesToTalent(
+        talent.talentId,
+        createTalentDto.categories,
+      );
+    }
 
     // Process and upload media files if any
     if (
@@ -409,6 +505,32 @@ export class TalentService {
       where: { talentId: id },
       data: updateData,
     });
+
+    // Handle categories if provided
+    if (updateTalentDto.categories && updateTalentDto.categories.length > 0) {
+      // First remove all existing categories if we're replacing them
+      if (!updateTalentDto.removedCategories) {
+        const existingCategories = await this.getTalentCategories(id);
+        await this.removeCategoriesFromTalent(
+          id,
+          existingCategories.map((cat) => cat.id),
+        );
+      }
+
+      // Then add the new categories
+      await this.assignCategoriesToTalent(id, updateTalentDto.categories);
+    }
+
+    // Handle removed categories if specified
+    if (
+      updateTalentDto.removedCategories &&
+      updateTalentDto.removedCategories.length > 0
+    ) {
+      await this.removeCategoriesFromTalent(
+        id,
+        updateTalentDto.removedCategories,
+      );
+    }
 
     // Process and upload new media files if any
     if (files) {
@@ -585,11 +707,16 @@ export class TalentService {
     services?: string[];
     minHourlyRate?: number;
     maxHourlyRate?: number;
-    city?: string; // Changed from location to city
+    city?: string;
     minRating?: number;
     status?: 'PENDING' | 'APPROVED' | 'REJECTED';
     isEmailVerified?: boolean;
     isPublic?: boolean;
+    search?: string;
+    generalCategory?: string;
+    languages?: string[];
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   }) {
     const {
       skip = 0,
@@ -597,23 +724,20 @@ export class TalentService {
       services,
       minHourlyRate,
       maxHourlyRate,
-      city, // Changed from location to city
+      city,
       minRating,
       status,
       isEmailVerified,
       isPublic,
+      search,
+      generalCategory,
+      languages,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
     } = params;
 
     // Build where conditions based on filters
-    const where: {
-      services?: { hasSome: string[] };
-      hourlyRate?: { gte?: number; lte?: number };
-      city?: { contains: string; mode: 'insensitive' }; // Changed from location to city
-      rating?: { gte: number };
-      status?: 'PENDING' | 'APPROVED' | 'REJECTED';
-      isEmailVerified?: boolean;
-      isPublic?: boolean;
-    } = {};
+    const where: Prisma.TalentWhereInput = {};
 
     if (services?.length) {
       where.services = { hasSome: services };
@@ -626,58 +750,171 @@ export class TalentService {
     }
 
     if (city) {
-      // Changed from location to city
-      where.city = { contains: city, mode: 'insensitive' }; // Changed from location to city
+      where.city = { contains: city, mode: 'insensitive' };
     }
 
     if (minRating !== undefined) {
       where.rating = { gte: minRating };
     }
 
+    if (languages?.length) {
+      where.languagesSpoken = { hasSome: languages };
+    }
+
     if (status) {
       where.status = status;
     }
 
-    if (isEmailVerified) {
+    if (isEmailVerified !== undefined) {
       where.isEmailVerified = isEmailVerified;
     }
 
-    if (isPublic) {
+    if (isPublic !== undefined) {
       where.isPublic = isPublic;
     }
 
-    // Get talents with pagination and filtering
-    const talents = await this.prisma.safeQuery(() =>
-      this.prisma.talent.findMany({
-        where,
-        skip,
-        take,
-        include: {
-          media: true,
-          user: {
-            select: {
-              name: true,
-              profilePicture: true,
-              email: true,
+    // Handle generalCategory filter
+    if (generalCategory) {
+      where.categories = {
+        some: {
+          category: {
+            name: generalCategory,
+            type: 'GENERAL',
+          },
+        },
+      };
+    }
+
+    // Handle search parameter - search across multiple fields
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { serviceName: { contains: search, mode: 'insensitive' } },
+        { bio: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Determine the ordering based on sortBy and sortOrder
+    const orderBy: Record<string, 'asc' | 'desc'> = {};
+
+    // Handle different sort options
+    if (sortBy === 'rating') {
+      orderBy.rating = sortOrder || 'desc';
+    } else if (sortBy === 'hourlyRate') {
+      orderBy.hourlyRate = sortOrder || 'asc';
+    } else if (sortBy === 'createdAt') {
+      orderBy.createdAt = sortOrder || 'desc';
+    } else {
+      // Default sorting
+      orderBy.createdAt = 'desc';
+    }
+
+    try {
+      // Use safeQuery to get talents with pagination and filtering
+      const talents = await this.prisma.safeQuery(() =>
+        this.prisma.talent.findMany({
+          where,
+          skip,
+          take,
+          include: {
+            media: true,
+            user: {
+              select: {
+                name: true,
+                profilePicture: true,
+                email: true,
+              },
+            },
+            categories: {
+              include: {
+                category: true,
+              },
+            },
+          },
+          orderBy,
+        }),
+      );
+
+      // Get total count for pagination using safeQuery
+      const totalCount = await this.prisma.safeQuery(() =>
+        this.prisma.talent.count({
+          where,
+        }),
+      );
+
+      return {
+        talents,
+        totalCount,
+        page: Math.floor(skip / take) + 1,
+        pageSize: take,
+        pageCount: Math.ceil(totalCount / take),
+      };
+    } catch (error) {
+      console.error('Error in findAll talents:', error);
+      throw new InternalServerErrorException('Failed to retrieve talents');
+    }
+  }
+  /**
+   * Find a talent profile by service name (slugified)
+   */
+  async findByServiceName(serviceName: string) {
+    // Convert the URL-friendly service name to a proper format
+    // This example assumes a simple slugification: "professional-singer" -> "Professional Singer"
+    // You might need a more sophisticated conversion depending on your slugification method
+    const decodedServiceName = decodeURIComponent(serviceName)
+      .split('-')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    const talent = await this.prisma.talent.findFirst({
+      where: {
+        serviceName: {
+          equals: decodedServiceName,
+          mode: 'insensitive',
+        },
+        isPublic: true,
+        status: 'APPROVED',
+        isEmailVerified: true,
+      },
+      include: {
+        media: true,
+        reviews: {
+          take: 2, // Initially load just a few reviews
+          orderBy: {
+            createdAt: 'desc',
+          },
+          include: {
+            user: {
+              select: {
+                name: true,
+                profilePicture: true,
+              },
             },
           },
         },
-        orderBy: { rating: 'desc' },
-      }),
-    );
+      },
+    });
 
-    // Get total count for pagination
-    const totalCount = await this.prisma.safeQuery(() =>
-      this.prisma.talent.count({ where }),
-    );
+    if (!talent) {
+      throw new NotFoundException(
+        `Talent with service name ${serviceName} not found`,
+      );
+    }
 
-    return {
-      talents,
-      totalCount,
-      page: Math.floor(skip / take) + 1,
-      pageSize: take,
-      pageCount: Math.ceil(totalCount / take),
+    // Format the reviews to include user name
+    const formattedTalent = {
+      ...talent,
+      reviews: talent.reviews.map((review) => ({
+        ...review,
+        user: {
+          name: review.user || null,
+          profilePicture: review.user?.profilePicture || null,
+        },
+      })),
     };
+
+    return formattedTalent;
   }
 
   /**
@@ -712,6 +949,11 @@ export class TalentService {
                 createdAt: 'desc',
               },
             },
+            categories: {
+              include: {
+                category: true,
+              },
+            },
           },
         }),
       );
@@ -734,37 +976,43 @@ export class TalentService {
       throw new InternalServerErrorException('Error retrieving talent profile');
     }
   }
-
   /**
    * Find a talent profile by user ID
    */
   async findByUserId(userId: string) {
     try {
-      const talent = await this.prisma.safeQuery(() =>
-        this.prisma.talent.findUnique({
-          where: { talentId: userId }, // In your schema, talentId is the same as userId
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true,
-                profilePicture: true,
-              },
-            },
-            // Only include basic details for status checks
-            // This reduces the query complexity
-            media: {
-              take: 1, // Just check if there's any media
-              select: {
-                id: true,
-              },
+      const talent = await this.prisma.talent.findUnique({
+        where: { talentId: userId }, // In your schema, talentId is the same as userId
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              profilePicture: true,
             },
           },
-        }),
-      );
+          // Include categories
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+          // Only include basic details for status checks
+          // This reduces the query complexity
+          media: {
+            take: 1, // Just check if there's any media
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
 
+      // If no talent is found, throw a NotFoundException
       if (!talent) {
-        throw new NotFoundException(`Talent with user ID ${userId} not found`);
+        throw new NotFoundException(
+          `No talent profile found for user ID ${userId}`,
+        );
       }
 
       return talent;
@@ -865,6 +1113,144 @@ export class TalentService {
       });
 
       return { success: true, message: 'Talent profile deleted successfully' };
+    });
+  }
+  /**
+   * Get reviews for a talent with pagination
+   */
+  async getTalentReviews(talentId: string, page = 1, limit = 5) {
+    // Check if talent exists
+    const talent = await this.prisma.talent.findUnique({
+      where: { talentId },
+      select: { talentId: true, rating: true },
+    });
+
+    if (!talent) {
+      throw new NotFoundException(`Talent with ID ${talentId} not found`);
+    }
+
+    // Get total review count
+    const totalReviews = await this.prisma.review.count({
+      where: { talentReviewId: talentId },
+    });
+
+    // Get reviews with pagination
+    const reviews = await this.prisma.review.findMany({
+      where: { talentReviewId: talentId },
+      take: limit,
+      skip: (page - 1) * limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            name: true,
+            profilePicture: true,
+          },
+        },
+      },
+    });
+
+    // Format reviews to match expected structure
+    const formattedReviews = reviews.map((review) => ({
+      reviewId: review.reviewId,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      user: {
+        name: review.user || null,
+        profilePicture: review.user?.profilePicture || null,
+      },
+    }));
+
+    // Calculate if there are more reviews
+    const hasMore = totalReviews > page * limit;
+
+    return {
+      reviews: formattedReviews,
+      total: totalReviews,
+      averageRating: talent.rating,
+      hasMore,
+    };
+  }
+
+  /**
+   * Add a review for a talent
+   */
+  async addReview(
+    talentId: string,
+    userId: string,
+    rating: number,
+    comment: string,
+  ) {
+    // Check if talent exists
+    const talent = await this.prisma.talent.findUnique({
+      where: { talentId },
+      select: { talentId: true },
+    });
+
+    if (!talent) {
+      throw new NotFoundException(`Talent with ID ${talentId} not found`);
+    }
+
+    // Check if user has already reviewed this talent
+    const existingReview = await this.prisma.review.findFirst({
+      where: {
+        talentReviewId: talentId,
+        userRevieweId: userId,
+      },
+    });
+
+    // If user has already reviewed, update the existing review
+    if (existingReview) {
+      const updatedReview = await this.prisma.review.update({
+        where: { reviewId: existingReview.reviewId },
+        data: {
+          rating,
+          comment,
+          createdAt: new Date(),
+        },
+      });
+
+      // Update talent's average rating
+      await this.updateTalentRating(talentId);
+
+      return updatedReview;
+    }
+
+    // Otherwise, create a new review
+    const newReview = await this.prisma.review.create({
+      data: {
+        rating,
+        comment,
+        talentReviewId: talentId,
+        userRevieweId: userId,
+      },
+    });
+
+    // Update talent's average rating
+    await this.updateTalentRating(talentId);
+
+    return newReview;
+  }
+
+  /**
+   * Update a talent's average rating
+   */
+  private async updateTalentRating(talentId: string) {
+    // Get all reviews for this talent
+    const reviews = await this.prisma.review.findMany({
+      where: { talentReviewId: talentId },
+      select: { rating: true },
+    });
+
+    // Calculate average rating
+    const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
+    const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+    // Update talent with new average rating
+    await this.prisma.talent.update({
+      where: { talentId },
+      data: { rating: averageRating },
     });
   }
 

@@ -30,6 +30,7 @@
     "@nestjs/swagger": "11.1.1",
     "@nestjs/websockets": "11.1.0",
     "@prisma/client": "6.5.0",
+    "backend": "file:",
     "bcrypt": "5.1.1",
     "buffer-to-stream": "1.0.0",
     "class-transformer": "0.5.1",

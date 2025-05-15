@@ -21,7 +21,7 @@ export default function AuthLayout({
       const role = session?.user?.role;
       const roleBasedRoute =
         role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
-      const destination = redirect ?? roleBasedRoute;
+      const destination = redirect || roleBasedRoute;
       router.push(destination);
     }
   }, [status, router, redirect, session]);

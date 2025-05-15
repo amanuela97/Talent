@@ -167,8 +167,6 @@ export class TalentController {
       firstName: createTalentDto.firstName,
       lastName: createTalentDto.lastName,
       email: createTalentDto.email,
-      generalCategory: createTalentDto.generalCategory,
-      specificCategory: createTalentDto.specificCategory,
       serviceName: createTalentDto.serviceName,
       address: createTalentDto.address,
       phoneNumber: createTalentDto.phoneNumber,
@@ -278,6 +276,36 @@ export class TalentController {
     required: false,
     description: 'Filter by minimum rating',
   })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search by talent name, services, or general category',
+  })
+  @ApiQuery({
+    name: 'generalCategory',
+    required: false,
+    description: 'Filter by general category',
+  })
+  @ApiQuery({
+    name: 'languages',
+    required: false,
+    description: 'Filter by languages (comma separated)',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description: 'Field to sort by',
+  })
+  @ApiQuery({
+    name: 'sortOrder',
+    required: false,
+    description: 'Sort order (asc or desc)',
+  })
+  @ApiQuery({
+    name: 'isPublic',
+    required: false,
+    description: 'Filter by public status',
+  })
   @ApiResponse({ status: 200, description: 'List of talent profiles' })
   findAll(
     @Query('skip') skip?: string,
@@ -287,6 +315,12 @@ export class TalentController {
     @Query('maxHourlyRate') maxHourlyRate?: string,
     @Query('city') city?: string,
     @Query('minRating') minRating?: string,
+    @Query('search') search?: string,
+    @Query('generalCategory') generalCategory?: string,
+    @Query('languages') languages?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    @Query('isPublic') isPublic?: string,
   ) {
     return this.talentService.findAll({
       skip: skip ? parseInt(skip) : undefined,
@@ -296,7 +330,24 @@ export class TalentController {
       maxHourlyRate: maxHourlyRate ? parseFloat(maxHourlyRate) : undefined,
       city,
       minRating: minRating ? parseFloat(minRating) : undefined,
+      search,
+      generalCategory,
+      languages: languages ? languages.split(',') : undefined,
+      sortBy,
+      sortOrder,
+      isPublic: isPublic === 'true', // Convert string to boolean
     });
+  }
+  @Get('service/:serviceName')
+  @ApiOperation({ summary: 'Get talent profile by service name' })
+  @ApiParam({
+    name: 'serviceName',
+    description: 'Talent service name (slugified)',
+  })
+  @ApiResponse({ status: 200, description: 'Talent profile found' })
+  @ApiResponse({ status: 404, description: 'Talent profile not found' })
+  async findByServiceName(@Param('serviceName') serviceName: string) {
+    return this.talentService.findByServiceName(serviceName);
   }
 
   @Get(':id')
@@ -307,14 +358,13 @@ export class TalentController {
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.talentService.findOne(id);
   }
-
   @Get('user/:userId')
   @ApiOperation({ summary: 'Find talent by user ID' })
   @ApiParam({ name: 'userId', type: 'string', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'Talent found' })
   @ApiResponse({ status: 404, description: 'Talent not found' })
   async findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
-    return this.talentService.findByUserId(userId);
+    return await this.talentService.findByUserId(userId);
   }
 
   @Patch(':id')
@@ -421,12 +471,6 @@ export class TalentController {
     if (updateTalentDto.email !== undefined)
       talentData.email = updateTalentDto.email;
 
-    if (updateTalentDto.generalCategory !== undefined)
-      talentData.generalCategory = updateTalentDto.generalCategory;
-
-    if (updateTalentDto.specificCategory !== undefined)
-      talentData.specificCategory = updateTalentDto.specificCategory;
-
     if (updateTalentDto.serviceName !== undefined)
       talentData.serviceName = updateTalentDto.serviceName;
 
@@ -452,6 +496,22 @@ export class TalentController {
 
     if (updateTalentDto.isPublic !== undefined)
       talentData.isPublic = updateTalentDto.isPublic;
+
+    // Handle categories if provided
+    if (updateTalentDto.categories !== undefined) {
+      talentData.categories = Array.isArray(updateTalentDto.categories)
+        ? updateTalentDto.categories
+        : JSON.parse(updateTalentDto.categories as unknown as string);
+    }
+
+    // Handle removed categories if provided
+    if (updateTalentDto.removedCategories !== undefined) {
+      talentData.removedCategories = Array.isArray(
+        updateTalentDto.removedCategories,
+      )
+        ? updateTalentDto.removedCategories
+        : JSON.parse(updateTalentDto.removedCategories as unknown as string);
+    }
 
     if (updateTalentDto.languagesSpoken !== undefined) {
       talentData.languagesSpoken = Array.isArray(
@@ -716,6 +776,69 @@ export class TalentController {
   async removeMedia(@Param('mediaId') mediaId: string) {
     return this.talentService.removeMedia(mediaId);
   }
+  @Get(':id/reviews')
+  @ApiOperation({ summary: 'Get reviews for a talent profile' })
+  @ApiParam({ name: 'id', description: 'Talent ID' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number, starting from 1',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of reviews per page',
+  })
+  @ApiResponse({ status: 200, description: 'Reviews found' })
+  @ApiResponse({ status: 404, description: 'Talent profile not found' })
+  async getTalentReviews(
+    @Param('id') id: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '5',
+  ) {
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    return this.talentService.getTalentReviews(id, pageNum, limitNum);
+  }
+
+  @Post(':id/review')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a review for a talent' })
+  @ApiParam({ name: 'id', description: 'Talent ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        rating: { type: 'number', minimum: 1, maximum: 5 },
+        comment: { type: 'string' },
+      },
+      required: ['rating', 'comment'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Review added successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid rating or comment' })
+  @ApiResponse({ status: 404, description: 'Talent profile not found' })
+  async addReview(
+    @Param('id') id: string,
+    @Body('rating') rating: number,
+    @Body('comment') comment: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!rating || rating < 1 || rating > 5) {
+      throw new BadRequestException('Rating must be between 1 and 5');
+    }
+
+    if (!comment || comment.trim().length === 0) {
+      throw new BadRequestException('Comment is required');
+    }
+
+    if (!req.user || !req.user.userId) {
+      throw new BadRequestException('User information is missing');
+    }
+    return this.talentService.addReview(id, req.user.userId, rating, comment);
+  }
 
   @Get(':id/media')
   @ApiOperation({ summary: 'Get all media for a talent profile' })
@@ -783,7 +906,6 @@ export class TalentController {
     return this.talentService.verifyEmail(token);
   }
 
-  // Add this endpoint to your TalentController
   @Get('admin/pending')
   @UseGuards(JwtGuard, RolesGuard)
   @Roles('ADMIN')
@@ -794,11 +916,23 @@ export class TalentController {
     status: 403,
     description: 'Forbidden - Admin access required',
   })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+  })
   async getPendingTalents() {
-    return this.talentService.findAll({
-      status: 'PENDING',
-      isEmailVerified: true,
-    });
+    try {
+      return await this.talentService.findAll({
+        status: 'PENDING',
+        isEmailVerified: true,
+      });
+    } catch (error) {
+      // Log the error for debugging
+      console.error('Error fetching pending talents:', error);
+
+      // Rethrow to let the exception filters handle it
+      throw error;
+    }
   }
 
   @Patch(':id/status')

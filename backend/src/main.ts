@@ -3,10 +3,18 @@ import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
 import * as cookieParser from 'cookie-parser'; // Change this line
 import { PrismaService } from './prisma.service';
+import { AllExceptionsFilter } from './commont/filters/all-exceptions.filter';
+import { ValidationPipe, Logger } from '@nestjs/common';
 
 async function bootstrap() {
   try {
-    const app = await NestFactory.create(AppModule);
+    // Create the app with logging configuration to suppress debug logs
+    const app = await NestFactory.create(AppModule, {
+      logger:
+        process.env.NODE_ENV === 'production'
+          ? ['error', 'warn'] // Only show errors and warnings in production
+          : ['error', 'warn', 'log'], // In development, show logs but not debug
+    });
 
     // Enable shutdown hooks for Prisma
     const prismaService = app.get(PrismaService);
@@ -25,6 +33,10 @@ async function bootstrap() {
       // Continue anyway - the app will handle connection issues at runtime
     }
 
+    app.useGlobalFilters(new AllExceptionsFilter());
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    );
     app.enableCors({
       origin: 'http://localhost:3000',
       credentials: true,

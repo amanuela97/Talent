@@ -2,6 +2,40 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
+interface BookingRequestData {
+  talentName: string;
+  clientName: string;
+  eventType: string;
+  eventDate: string;
+  eventTime: string;
+  duration: number;
+  location: string;
+  totalPrice: number;
+}
+
+interface BookingConfirmationData {
+  clientName: string;
+  talentName: string;
+  serviceName: string;
+  eventType: string;
+  eventDate: string;
+  eventTime: string;
+  duration: number;
+  location: string;
+  totalPrice: number;
+}
+
+interface BookingStatusUpdateData {
+  clientName: string;
+  talentName: string;
+  serviceName: string;
+  eventType: string;
+  eventDate: string;
+  eventTime?: string;
+  duration?: number;
+  location?: string;
+}
+
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
@@ -182,6 +216,200 @@ export class MailService {
         </div>
       </div>
     `,
+    });
+  }
+
+  /**
+   * Send booking request notification to talent
+   */
+  async sendBookingRequestToTalent(
+    email: string,
+    data: BookingRequestData,
+  ): Promise<void> {
+    const fromEmail = this.configService.get<string>('MAIL_USER');
+
+    await this.transporter.sendMail({
+      from: `"Talent Platform" <${fromEmail}>`,
+      to: email,
+      subject: 'New Booking Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #f8f8f8; padding: 20px; text-align: center;">
+            <h1 style="color: #ff5e00;">Talent Platform</h1>
+          </div>
+          <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
+            <h2>Hello ${data.talentName},</h2>
+            <p>You have received a new booking request from ${data.clientName}.</p>
+            
+            <div style="background-color: #f9f9f9; border-left: 4px solid #ff5e00; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Booking Details:</h3>
+              <p><strong>Event Type:</strong> ${data.eventType}</p>
+              <p><strong>Date:</strong> ${data.eventDate}</p>
+              <p><strong>Time:</strong> ${data.eventTime}</p>
+              <p><strong>Duration:</strong> ${data.duration ?? 0} hour${(data.duration ?? 0) > 1 ? 's' : ''}</p>
+              <p><strong>Location:</strong> ${data.location}</p>
+              <p><strong>Total Price:</strong> $${data.totalPrice.toFixed(2)}</p>
+            </div>
+            
+            <p>Please log in to your dashboard to accept or decline this request.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/dashboard/bookings" style="background-color: #ff5e00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                View Booking Request
+              </a>
+            </div>
+            
+            <p>Best regards,<br>The Talent Platform Team</p>
+          </div>
+          <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #777;">
+            <p>&copy; ${new Date().getFullYear()} Talent Platform. All rights reserved.</p>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  /**
+   * Send booking confirmation to client
+   */
+  async sendBookingConfirmationToClient(
+    email: string,
+    data: BookingConfirmationData,
+  ): Promise<void> {
+    const fromEmail = this.configService.get<string>('MAIL_USER');
+
+    await this.transporter.sendMail({
+      from: `"Talent Platform" <${fromEmail}>`,
+      to: email,
+      subject: 'Booking Request Confirmation',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #f8f8f8; padding: 20px; text-align: center;">
+            <h1 style="color: #ff5e00;">Talent Platform</h1>
+          </div>
+          <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
+            <h2>Hello ${data.clientName},</h2>
+            <p>Thank you for your booking request with ${data.talentName} (${data.serviceName}).</p>
+            
+            <div style="background-color: #f9f9f9; border-left: 4px solid #ff5e00; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">Booking Details:</h3>
+              <p><strong>Event Type:</strong> ${data.eventType}</p>
+              <p><strong>Date:</strong> ${data.eventDate}</p>
+              <p><strong>Time:</strong> ${data.eventTime}</p>
+              <p><strong>Duration:</strong> ${data.duration ?? 0} hour${(data.duration ?? 0) > 1 ? 's' : ''}</p>
+              <p><strong>Location:</strong> ${data.location}</p>
+              <p><strong>Total Price:</strong> $${data.totalPrice.toFixed(2)}</p>
+            </div>
+            
+            <p>Your booking request has been sent to ${data.talentName} for approval. We will notify you when they respond to your request.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/bookings" style="background-color: #ff5e00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                View Your Bookings
+              </a>
+            </div>
+            
+            <p>Best regards,<br>The Talent Platform Team</p>
+          </div>
+          <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #777;">
+            <p>&copy; ${new Date().getFullYear()} Talent Platform. All rights reserved.</p>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  /**
+   * Send booking accepted notification to client
+   */
+  async sendBookingAcceptedToClient(
+    email: string,
+    data: BookingStatusUpdateData,
+  ): Promise<void> {
+    const fromEmail = this.configService.get<string>('MAIL_USER');
+
+    await this.transporter.sendMail({
+      from: `"Talent Platform" <${fromEmail}>`,
+      to: email,
+      subject: 'Your Booking Has Been Accepted',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #f8f8f8; padding: 20px; text-align: center;">
+            <h1 style="color: #ff5e00;">Talent Platform</h1>
+          </div>
+          <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
+            <h2>Good news, ${data.clientName}!</h2>
+            <p>${data.talentName} has accepted your booking request.</p>
+            
+            <div style="background-color: #f9f9f9; border-left: 4px solid #4CAF50; padding: 15px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #4CAF50;">Booking Confirmed:</h3>
+              <p><strong>Event Type:</strong> ${data.eventType}</p>
+              <p><strong>Date:</strong> ${data.eventDate}</p>
+              <p><strong>Time:</strong> ${data.eventTime}</p>
+              <p><strong>Duration:</strong> ${data.duration ?? 0} hour${(data.duration ?? 0) > 1 ? 's' : ''}</p>
+              <p><strong>Location:</strong> ${data.location}</p>
+            </div>
+            
+            <p>You can contact ${data.talentName} directly through our messaging system if you have any questions or need to discuss details.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/bookings" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                View Your Bookings
+              </a>
+            </div>
+            
+            <p>Best regards,<br>The Talent Platform Team</p>
+          </div>
+          <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #777;">
+            <p>&copy; ${new Date().getFullYear()} Talent Platform. All rights reserved.</p>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  /**
+   * Send booking rejected notification to client
+   */
+  async sendBookingRejectedToClient(
+    email: string,
+    data: BookingStatusUpdateData,
+  ): Promise<void> {
+    const fromEmail = this.configService.get<string>('MAIL_USER');
+
+    await this.transporter.sendMail({
+      from: `"Talent Platform" <${fromEmail}>`,
+      to: email,
+      subject: 'Booking Request Update',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background-color: #f8f8f8; padding: 20px; text-align: center;">
+            <h1 style="color: #ff5e00;">Talent Platform</h1>
+          </div>
+          <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
+            <h2>Hello ${data.clientName},</h2>
+            <p>We're sorry to inform you that ${data.talentName} is unable to accept your booking request for the following event:</p>
+            
+            <div style="background-color: #f9f9f9; border-left: 4px solid #777; padding: 15px; margin: 20px 0;">
+              <p><strong>Event Type:</strong> ${data.eventType}</p>
+              <p><strong>Date:</strong> ${data.eventDate}</p>
+            </div>
+            
+            <p>This could be due to a scheduling conflict or other commitments. We encourage you to browse other talents or select a different date.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${this.configService.get<string>('FRONTEND_URL')}/talents" style="background-color: #ff5e00; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                Explore Other Talents
+              </a>
+            </div>
+            
+            <p>Best regards,<br>The Talent Platform Team</p>
+          </div>
+          <div style="background-color: #f8f8f8; padding: 15px; text-align: center; font-size: 12px; color: #777;">
+            <p>&copy; ${new Date().getFullYear()} Talent Platform. All rights reserved.</p>
+          </div>
+        </div>
+      `,
     });
   }
 }

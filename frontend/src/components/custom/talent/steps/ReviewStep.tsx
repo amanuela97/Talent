@@ -6,8 +6,11 @@ type FormValues = {
   firstName: string;
   lastName: string;
   email: string;
-  generalCategory: string;
-  specificCategory: string;
+  categories: Array<{
+    id: string;
+    name: string;
+    type: 'GENERAL' | 'SPECIFIC';
+  }>;
   serviceName: string;
   address: string;
   phoneNumber: string;
@@ -62,11 +65,15 @@ export default function ReviewStep({ formValues }: { formValues: FormValues }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-500">General Category</p>
-              <p className="font-medium">{formValues.generalCategory}</p>
+              <p className="font-medium">
+                {formValues.categories?.[0]?.name || 'Not selected'}
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Specific Category</p>
-              <p className="font-medium">{formValues.specificCategory}</p>
+              <p className="font-medium">
+                {formValues.categories?.[1]?.name || 'Not selected'}
+              </p>
             </div>
           </div>
 

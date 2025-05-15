@@ -17,6 +17,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     // Check if user is authenticated and is an admin
+    console.log(status, session?.user?.role);
     if (status === 'authenticated') {
       if (session?.user?.role !== 'ADMIN') {
         // Not an admin, redirect to home

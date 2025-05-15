@@ -31,7 +31,8 @@ const HomeMain = () => {
                   size="lg"
                   className="bg-orange-500 hover:bg-orange-600 cursor-pointer"
                 >
-                  Find Talent <ArrowRight className="ml-2 h-4 w-4" />
+                  <Link href="/talents">Find Talent</Link>
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button size="lg" variant="outline" className="cursor-pointer">
                   <Link href="/join">Become a Talent</Link>

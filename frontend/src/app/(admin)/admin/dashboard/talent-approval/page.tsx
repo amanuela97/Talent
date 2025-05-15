@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import axiosInstance from '@/app/utils/axios';
-import { Button } from '@/components/ui/button';
+import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import axiosInstance from "@/app/utils/axios";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -13,8 +13,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -22,8 +22,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle,
   XCircle,
@@ -33,21 +33,33 @@ import {
   Tags,
   User,
   Loader2,
-} from 'lucide-react';
-import Loader from '@/components/custom/Loader';
-import { toast } from 'sonner';
+} from "lucide-react";
+import Loader from "@/components/custom/Loader";
+import { toast } from "sonner";
+
+interface TalentCategory {
+  id: string;
+  categoryId: string;
+  talentId: string;
+  category: {
+    id: string;
+    name: string;
+    type: "GENERAL" | "SPECIFIC";
+  };
+}
 
 interface Talent {
   talentId: string;
   firstName: string;
   lastName: string;
   talentProfilePicture: string;
-  generalCategory: string;
-  specificCategory: string;
+  generalCategory?: string;
+  specificCategory?: string;
+  categories?: TalentCategory[];
   serviceName: string;
   address: string;
   phoneNumber: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: "PENDING" | "APPROVED" | "REJECTED";
   rejectionReason?: string;
 }
 
@@ -59,26 +71,26 @@ export default function TalentApprovalPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [selectedTalentId, setSelectedTalentId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Check if user is authenticated and is an admin
   useEffect(() => {
-    if (status === 'authenticated') {
-      if (session?.user?.role !== 'ADMIN') {
-        toast.info('You do not have permission to view this page.');
-        router.push('/dashboard');
+    if (status === "authenticated") {
+      if (session?.user?.role !== "ADMIN") {
+        toast.info("You do not have permission to view this page.");
+        router.push("/dashboard");
       } else {
         fetchPendingTalents();
       }
-    } else if (status === 'unauthenticated') {
-      router.push('/login');
+    } else if (status === "unauthenticated") {
+      router.push("/login");
     }
   }, [status, session, router]);
 
   const fetchPendingTalents = async () => {
     try {
       setIsLoading(true);
-      const response = await axiosInstance.get('/talents/admin/pending');
+      const response = await axiosInstance.get("/talents/admin/pending");
 
       // Handle different possible response formats
       let talents: Talent[] = [];
@@ -91,9 +103,9 @@ export default function TalentApprovalPage() {
           Array.isArray(response.data.talents)
         ) {
           talents = response.data.talents;
-        } else if (typeof response.data === 'object') {
+        } else if (typeof response.data === "object") {
           // Log the structure to help debug
-          console.log('Response data structure:', Object.keys(response.data));
+          console.log("Response data structure:", Object.keys(response.data));
 
           // Try to find an array property in the response
           const possibleArrayProps = Object.keys(response.data).filter((key) =>
@@ -104,16 +116,45 @@ export default function TalentApprovalPage() {
             talents = response.data[possibleArrayProps[0]];
           } else {
             // If we can't find an array, create an empty one and show an error
-            toast.error('Unexpected API response format');
+            console.warn("Unexpected API response format:", response.data);
+            toast.error("Unexpected API response format");
           }
         }
       }
 
-      console.log('Parsed talents:', talents);
+      console.log("Parsed talents:", talents);
       setPendingTalents(talents);
-    } catch (error) {
-      console.error('Error fetching pending talents:', error);
-      toast.error('Failed to fetch pending talents.');
+    } catch (error: unknown) {
+      console.error("Error fetching pending talents:", error);
+
+      // More detailed error handling
+      let errorMessage = "Failed to fetch pending talents.";
+      if (error && typeof error === "object" && "response" in error) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        const axiosError = error as {
+          response: {
+            status: number;
+            data: unknown;
+          };
+        };
+        console.error("Server error status:", axiosError.response.status);
+        console.error("Server error data:", axiosError.response.data);
+
+        if (axiosError.response.status === 500) {
+          errorMessage =
+            "Server error: The system is temporarily unavailable. Please try again later.";
+        } else if (axiosError.response.status === 403) {
+          errorMessage =
+            "Access denied: You do not have permission to view pending talents.";
+        }
+      } else if (error && typeof error === "object" && "request" in error) {
+        // The request was made but no response was received
+        errorMessage =
+          "Network error: Please check your connection and try again.";
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -121,22 +162,22 @@ export default function TalentApprovalPage() {
 
   const openRejectionModal = (talentId: string) => {
     setSelectedTalentId(talentId);
-    setRejectionReason('');
+    setRejectionReason("");
     setRejectionModalOpen(true);
   };
 
   const handleRejection = async () => {
     if (!selectedTalentId) return;
 
-    await updateTalentStatus(selectedTalentId, 'REJECTED', rejectionReason);
+    await updateTalentStatus(selectedTalentId, "REJECTED", rejectionReason);
     setRejectionModalOpen(false);
     setSelectedTalentId(null);
-    setRejectionReason('');
+    setRejectionReason("");
   };
 
   const updateTalentStatus = async (
     talentId: string,
-    newStatus: 'APPROVED' | 'REJECTED',
+    newStatus: "APPROVED" | "REJECTED",
     reason?: string
   ) => {
     try {
@@ -146,7 +187,7 @@ export default function TalentApprovalPage() {
         status: newStatus,
       };
 
-      if (newStatus === 'REJECTED' && reason) {
+      if (newStatus === "REJECTED" && reason) {
         payload.rejectionReason = reason;
       }
 
@@ -166,11 +207,11 @@ export default function TalentApprovalPage() {
     }
   };
 
-  if (isLoading || status === 'loading') {
+  if (isLoading || status === "loading") {
     return <Loader />;
   }
 
-  if (!session || session.user?.role !== 'ADMIN') {
+  if (!session || session.user?.role !== "ADMIN") {
     return <Loader />; // This will be redirected by the useEffect
   }
 
@@ -244,7 +285,7 @@ export default function TalentApprovalPage() {
                     <p className="text-sm text-amber-700">
                       <span className="font-medium">
                         Previous rejection reason:
-                      </span>{' '}
+                      </span>{" "}
                       {talent.rejectionReason}
                     </p>
                   </div>
@@ -255,14 +296,28 @@ export default function TalentApprovalPage() {
                       <Briefcase className="w-4 h-4 mr-1.5" />
                       General Category
                     </p>
-                    <p className="text-sm mt-1">{talent.generalCategory}</p>
+                    <p className="text-sm mt-1">
+                      {talent.categories && talent.categories.length > 0
+                        ? talent.categories
+                            .filter((tc) => tc.category.type === "GENERAL")
+                            .map((tc) => tc.category.name)
+                            .join(", ")
+                        : talent.generalCategory || "Not specified"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground flex items-center">
                       <Tags className="w-4 h-4 mr-1.5" />
                       Specific Category
                     </p>
-                    <p className="text-sm mt-1">{talent.specificCategory}</p>
+                    <p className="text-sm mt-1">
+                      {talent.categories && talent.categories.length > 0
+                        ? talent.categories
+                            .filter((tc) => tc.category.type === "SPECIFIC")
+                            .map((tc) => tc.category.name)
+                            .join(", ")
+                        : talent.specificCategory || "Not specified"}
+                    </p>
                   </div>
                 </div>
 
@@ -302,14 +357,14 @@ export default function TalentApprovalPage() {
                   ) : (
                     <XCircle className="w-4 h-4 mr-2" />
                   )}
-                  {processing === talent.talentId ? 'Processing...' : 'Reject'}
+                  {processing === talent.talentId ? "Processing..." : "Reject"}
                 </Button>
 
                 <Button
                   variant="outline"
                   className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 flex-1 cursor-pointer"
                   onClick={() =>
-                    updateTalentStatus(talent.talentId, 'APPROVED')
+                    updateTalentStatus(talent.talentId, "APPROVED")
                   }
                   disabled={!!processing}
                 >
@@ -318,7 +373,7 @@ export default function TalentApprovalPage() {
                   ) : (
                     <CheckCircle className="w-4 h-4 mr-2" />
                   )}
-                  {processing === talent.talentId ? 'Processing...' : 'Approve'}
+                  {processing === talent.talentId ? "Processing..." : "Approve"}
                 </Button>
               </CardFooter>
             </Card>

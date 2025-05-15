@@ -1,8 +1,17 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { AutoSuggestCategory } from "../steps/AutoSuggestCategory";
+import { X } from "lucide-react";
+
+interface Category {
+  id: string;
+  name: string;
+  type: "GENERAL" | "SPECIFIC";
+  parentId?: string | null;
+}
 
 interface GeneralInfoEditorProps {
   firstName: string;
@@ -12,8 +21,7 @@ interface GeneralInfoEditorProps {
   city: string;
   bio: string;
   email: string;
-  generalCategory: string;
-  specificCategory: string;
+  categories?: Category[];
   serviceName: string;
   onSubmit: (data: GeneralInfoFormData) => Promise<void>;
 }
@@ -26,8 +34,7 @@ type GeneralInfoFormData = {
   city: string;
   bio: string;
   email: string;
-  generalCategory: string;
-  specificCategory: string;
+  categories: Category[];
   serviceName: string;
 };
 
@@ -39,12 +46,11 @@ export default function GeneralInfoEditor({
   city,
   bio,
   email,
-  generalCategory,
-  specificCategory,
+  categories = [],
   serviceName,
   onSubmit,
 }: GeneralInfoEditorProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<GeneralInfoFormData>({
     firstName,
     lastName,
     phoneNumber,
@@ -52,11 +58,18 @@ export default function GeneralInfoEditor({
     city,
     bio,
     email,
-    generalCategory,
-    specificCategory,
+    categories,
     serviceName,
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Get lists of general and specific categories
+  const generalCategories = formData.categories.filter(
+    (cat) => cat.type === "GENERAL"
+  );
+  const specificCategories = formData.categories.filter(
+    (cat) => cat.type === "SPECIFIC"
+  );
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -68,6 +81,31 @@ export default function GeneralInfoEditor({
     }));
   };
 
+  const handleCategoryChange = (category: Category | null) => {
+    if (!category) return;
+
+    setFormData((prev) => {
+      // Check if the category is already selected to avoid duplicates
+      const categoryExists = prev.categories.some(
+        (cat) => cat.id === category.id
+      );
+      if (categoryExists) return prev;
+
+      // Add the new category to the list
+      return {
+        ...prev,
+        categories: [...prev.categories, category],
+      };
+    });
+  };
+
+  const removeCategory = (categoryId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      categories: prev.categories.filter((cat) => cat.id !== categoryId),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -75,7 +113,7 @@ export default function GeneralInfoEditor({
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error("Error submitting form:", error);
     } finally {
       setSubmitting(false);
     }
@@ -168,28 +206,61 @@ export default function GeneralInfoEditor({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="generalCategory">General Category</Label>
-              <Input
-                id="generalCategory"
-                name="generalCategory"
-                value={formData.generalCategory}
-                onChange={handleChange}
-                placeholder="e.g. Music, Food, Art"
-                required
+            <div className="space-y-2 col-span-1 md:col-span-2">
+              <Label>General Categories</Label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {generalCategories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="bg-orange-100 text-orange-800 rounded-full px-3 py-1 text-sm flex items-center gap-1"
+                  >
+                    {cat.name}
+                    <button
+                      type="button"
+                      onClick={() => removeCategory(cat.id)}
+                      className="text-orange-600 hover:text-orange-800"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <AutoSuggestCategory
+                value={null}
+                onChange={(category) => handleCategoryChange(category)}
+                type="GENERAL"
+                placeholder="Add a general category (e.g. Music, Food, Art)"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="specificCategory">Specific Category</Label>
-              <Input
-                id="specificCategory"
-                name="specificCategory"
-                value={formData.specificCategory}
-                onChange={handleChange}
-                placeholder="e.g. Chef, Pianist, Photographer"
-                required
+            <div className="space-y-2 col-span-1 md:col-span-2">
+              <Label>Specific Categories</Label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {specificCategories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="bg-blue-100 text-blue-800 rounded-full px-3 py-1 text-sm flex items-center gap-1"
+                  >
+                    {cat.name}
+                    <button
+                      type="button"
+                      onClick={() => removeCategory(cat.id)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <AutoSuggestCategory
+                value={null}
+                onChange={(category) => handleCategoryChange(category)}
+                type="SPECIFIC"
+                placeholder="Add a specific category (e.g. Chef, Pianist, Photographer)"
               />
+              <p className="text-sm text-gray-500 mt-1">
+                You can add multiple categories to better describe your services
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -220,7 +291,7 @@ export default function GeneralInfoEditor({
 
           <div className="flex justify-end">
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save Changes'}
+              {submitting ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>

@@ -18,6 +18,7 @@ import {
   MessageSquare,
   FileText,
   HelpCircle,
+  Tag,
 } from 'lucide-react';
 import Link from 'next/link';
 import Loader from '@/components/custom/Loader';
@@ -28,6 +29,7 @@ import { handleSignOut } from '@/app/utils/helper';
 interface DashboardStats {
   totalTalents: number;
   pendingApprovals: number;
+  pendingCategories: number;
   totalUsers: number;
   totalBookings: number;
 }
@@ -38,6 +40,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalTalents: 0,
     pendingApprovals: 0,
+    pendingCategories: 0,
     totalUsers: 0,
     totalBookings: 0,
   });
@@ -62,28 +65,79 @@ export default function AdminDashboard() {
     try {
       setIsLoading(true);
 
-      // Fetch pending talents to get count
-      const pendingResponse = await axiosInstance.get('/talents/admin/pending');
-      const pendingCount =
-        pendingResponse.data.totalCount || pendingResponse.data.length || 0;
+      // Initialize default values in case we can't fetch all stats
+      let pendingCount = 0;
+      let pendingCategoriesCount = 0;
+      let totalTalents = 0;
 
-      // Example of how you might fetch other stats
-      // In a real app, you would create proper endpoints for these
-      const talentsResponse = await axiosInstance.get('/talents', {
-        params: { take: 1 },
-      });
-      const totalTalents = talentsResponse.data.totalCount || 0;
+      try {
+        // Fetch pending talents to get count
+        const pendingResponse = await axiosInstance.get(
+          '/talents/admin/pending'
+        );
+        pendingCount =
+          pendingResponse.data.totalCount ||
+          (Array.isArray(pendingResponse.data.talents)
+            ? pendingResponse.data.talents.length
+            : 0) ||
+          (Array.isArray(pendingResponse.data)
+            ? pendingResponse.data.length
+            : 0) ||
+          0;
+        console.log('Pending talents response:', pendingResponse.data);
+      } catch (pendingError) {
+        console.error('Error fetching pending talents:', pendingError);
+        // Continue with other stats
+      }
+
+      try {
+        // Fetch pending categories
+        const pendingCategoriesResponse = await axiosInstance.get(
+          '/talent_categories',
+          {
+            params: { status: 'PENDING' },
+          }
+        );
+        pendingCategoriesCount = pendingCategoriesResponse.data.length || 0;
+      } catch (categoriesError) {
+        console.error('Error fetching pending categories:', categoriesError);
+        // Continue with other stats
+      }
+
+      try {
+        // Example of how you might fetch other stats
+        // In a real app, you would create proper endpoints for these
+        const talentsResponse = await axiosInstance.get('/talents', {
+          params: { take: 1 },
+        });
+        totalTalents = talentsResponse.data.totalCount || 0;
+      } catch (talentsError) {
+        console.error('Error fetching total talents:', talentsError);
+        // Continue with default values
+      }
 
       // Set the dashboard stats
       setStats({
         totalTalents,
         pendingApprovals: pendingCount,
+        pendingCategories: pendingCategoriesCount,
         totalUsers: totalTalents + 100, // Example placeholder
         totalBookings: 25, // Example placeholder
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
-      toast.error('Failed to fetch dashboard statistics.');
+      toast.error(
+        'Failed to fetch some dashboard statistics. Using available data.'
+      );
+
+      // Still set stats with defaults to avoid a completely empty dashboard
+      setStats({
+        totalTalents: 0,
+        pendingApprovals: 0,
+        pendingCategories: 0,
+        totalUsers: 100, // Example placeholder
+        totalBookings: 0, // Example placeholder
+      });
     } finally {
       setIsLoading(false);
     }
@@ -106,6 +160,13 @@ export default function AdminDashboard() {
       href: '/admin/dashboard/talent-approval',
       color: 'bg-amber-100 text-amber-600',
       count: stats.pendingApprovals,
+    },
+    {
+      icon: <Tag className="h-5 w-5" />,
+      title: 'Category Management',
+      description: 'Review and approve pending category suggestions',
+      href: '/admin/dashboard/category-management',
+      color: 'bg-emerald-100 text-emerald-600',
     },
     {
       icon: <Users className="h-5 w-5" />,
@@ -181,6 +242,12 @@ export default function AdminDashboard() {
           value={stats.pendingApprovals}
           icon={<UserCheck className="h-6 w-6" />}
           color="bg-amber-50 text-amber-500"
+        />
+        <StatsCard
+          title="Pending Categories"
+          value={stats.pendingCategories}
+          icon={<Tag className="h-6 w-6" />}
+          color="bg-emerald-50 text-emerald-500"
         />
         <StatsCard
           title="Total Users"

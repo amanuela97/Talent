@@ -28,7 +28,7 @@ const HomeHeader = () => {
         </Link>
         <nav className="hidden md:flex gap-6">
           <Link
-            href="#"
+            href="/talents"
             className="text-sm font-medium hover:underline underline-offset-4"
           >
             Find Talent

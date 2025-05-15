@@ -1,42 +1,7 @@
-import { useSession } from 'next-auth/react';
-import { useState, useEffect, useRef } from 'react';
-import axiosInstance from '@/app/utils/axios';
-
-interface Media {
-  id: string;
-  type: 'IMAGE' | 'VIDEO' | 'AUDIO';
-  url: string;
-  description?: string;
-}
-
-export interface Talent {
-  talentId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  talentProfilePicture: string;
-  generalCategory: string;
-  specificCategory: string;
-  serviceName: string;
-  address: string;
-  phoneNumber: string;
-  bio: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  isEmailVerified: boolean;
-  verificationToken: string;
-  services: string[];
-  hourlyRate: number;
-  city: string;
-  availability: Record<string, string[]>;
-  isOnline: boolean;
-  isPublic: boolean;
-  languagesSpoken: string[];
-  rating: number;
-  socialLinks: Record<string, string>;
-  media: Media[];
-  createdAt: string;
-  updatedAt: string;
-}
+import { useSession } from "next-auth/react";
+import { useState, useEffect, useRef } from "react";
+import axiosInstance from "@/app/utils/axios";
+import type { Talent } from "@/types/prismaTypes";
 
 // Create a cache to store talent profiles globally
 const talentCache = new Map<string, { talent: Talent; timestamp: number }>();
@@ -76,7 +41,7 @@ export const useTalentProfile = () => {
 
         if (response.status === 404) {
           // User doesn't have a talent profile yet
-          console.error('Talent profile not found');
+          console.error("Talent profile not found");
           setTalent(null);
           return;
         }
@@ -89,7 +54,7 @@ export const useTalentProfile = () => {
 
         setTalent(response.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setLoading(false);
         initialFetchDone.current = true;
@@ -103,6 +68,14 @@ export const useTalentProfile = () => {
   }, [userId]);
 
   // Update general info (firstName, lastName, etc.)
+  interface Category {
+    id: string;
+    name: string;
+    type: "GENERAL" | "SPECIFIC";
+    parentId?: string | null;
+    status?: string;
+  }
+
   interface GeneralInfoData {
     firstName: string;
     lastName: string;
@@ -110,8 +83,7 @@ export const useTalentProfile = () => {
     address: string;
     city: string;
     bio: string;
-    generalCategory: string;
-    specificCategory: string;
+    categories: Category[]; // Array of category objects
     serviceName: string;
   }
 
@@ -119,6 +91,9 @@ export const useTalentProfile = () => {
     if (!talent) return;
 
     try {
+      // Extract category IDs from the categories array
+      const categoryIds = data.categories.map((cat) => cat.id);
+
       const response = await axiosInstance.patch(
         `/talents/${talent.talentId}`,
         {
@@ -128,8 +103,7 @@ export const useTalentProfile = () => {
           address: data.address,
           city: data.city,
           bio: data.bio,
-          generalCategory: data.generalCategory,
-          specificCategory: data.specificCategory,
+          categories: categoryIds, // Send array of category IDs to backend
           serviceName: data.serviceName,
         }
       );
@@ -145,7 +119,7 @@ export const useTalentProfile = () => {
       setTalent(response.data);
       return response.data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     }
   };
@@ -190,7 +164,7 @@ export const useTalentProfile = () => {
       setTalent(response.data);
       return response.data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     }
   };
@@ -208,22 +182,22 @@ export const useTalentProfile = () => {
 
       // Add the profile picture if provided
       if (profilePicture) {
-        formData.append('profilePicture', profilePicture);
+        formData.append("profilePicture", profilePicture);
         hasFiles = true;
       }
 
       // Add gallery images if any
       if (galleryImages && galleryImages.length > 0) {
         galleryImages.forEach((file) => {
-          formData.append('images', file);
+          formData.append("images", file);
         });
         hasFiles = true;
       }
 
       // Don't make the request if no files are provided
       if (!hasFiles) {
-        setError('No media files provided');
-        throw new Error('No media files provided');
+        setError("No media files provided");
+        throw new Error("No media files provided");
       }
 
       const response = await axiosInstance.post(
@@ -232,18 +206,18 @@ export const useTalentProfile = () => {
         {
           headers: {
             Authorization: `Bearer ${session?.accessToken}`,
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         }
       );
 
-      console.log('Upload response:', response);
+      console.log("Upload response:", response);
 
       // Refresh talent data to get updated media
       await refreshTalentData(true);
     } catch (err) {
-      console.error('Upload error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error("Upload error:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     }
   };
@@ -257,17 +231,17 @@ export const useTalentProfile = () => {
 
       // Validate videos array
       if (!videos || videos.length === 0) {
-        setError('No video files provided');
-        throw new Error('No video files provided');
+        setError("No video files provided");
+        throw new Error("No video files provided");
       }
 
       // Add videos
       videos.forEach((file) => {
-        formData.append('videos', file);
+        formData.append("videos", file);
       });
 
       // Log the FormData to debug
-      console.log('FormData contents for videos:');
+      console.log("FormData contents for videos:");
       for (const pair of formData.entries()) {
         console.log(pair[0], pair[1]);
       }
@@ -278,18 +252,18 @@ export const useTalentProfile = () => {
         {
           headers: {
             Authorization: `Bearer ${session?.accessToken}`,
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         }
       );
 
-      console.log('Upload video response:', response);
+      console.log("Upload video response:", response);
 
       // Refresh talent data to get updated media
       await refreshTalentData(true);
     } catch (err) {
-      console.error('Upload video error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error("Upload video error:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     }
   };
@@ -303,17 +277,17 @@ export const useTalentProfile = () => {
 
       // Validate audio files array
       if (!audioFiles || audioFiles.length === 0) {
-        setError('No audio files provided');
-        throw new Error('No audio files provided');
+        setError("No audio files provided");
+        throw new Error("No audio files provided");
       }
 
       // Add audio files
       audioFiles.forEach((file) => {
-        formData.append('audios', file);
+        formData.append("audios", file);
       });
 
       // Log the FormData to debug
-      console.log('FormData contents for audio:');
+      console.log("FormData contents for audio:");
       for (const pair of formData.entries()) {
         console.log(pair[0], pair[1]);
       }
@@ -324,18 +298,18 @@ export const useTalentProfile = () => {
         {
           headers: {
             Authorization: `Bearer ${session?.accessToken}`,
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
         }
       );
 
-      console.log('Upload audio response:', response);
+      console.log("Upload audio response:", response);
 
       // Refresh talent data to get updated media
       await refreshTalentData(true);
     } catch (err) {
-      console.error('Upload audio error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error("Upload audio error:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     }
   };
@@ -363,7 +337,7 @@ export const useTalentProfile = () => {
 
       setTalent(updatedTalent);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     }
   };
@@ -398,7 +372,7 @@ export const useTalentProfile = () => {
       setTalent(response.data);
       return response.data;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     } finally {
       setLoading(false);
@@ -406,7 +380,7 @@ export const useTalentProfile = () => {
   };
 
   // Helper function to filter media by type
-  const getMediaByType = (type: 'IMAGE' | 'VIDEO' | 'AUDIO') => {
+  const getMediaByType = (type: "IMAGE" | "VIDEO" | "AUDIO") => {
     if (!talent) return [];
     return talent.media.filter((item) => item.type === type);
   };
@@ -424,8 +398,8 @@ export const useTalentProfile = () => {
     refreshTalentData,
     getMediaByType,
     // Computed properties
-    images: talent ? getMediaByType('IMAGE') : [],
-    videos: talent ? getMediaByType('VIDEO') : [],
-    audioFiles: talent ? getMediaByType('AUDIO') : [],
+    images: talent ? getMediaByType("IMAGE") : [],
+    videos: talent ? getMediaByType("VIDEO") : [],
+    audioFiles: talent ? getMediaByType("AUDIO") : [],
   };
 };

@@ -4,8 +4,7 @@ export class CreateTalentDto {
   firstName: string;
   lastName: string;
   email: string; // Added email field
-  generalCategory: string;
-  specificCategory: string;
+  categories?: string[]; // Array of category IDs replacing generalCategory and specificCategory
   serviceName: string;
   address: string;
   phoneNumber: string;

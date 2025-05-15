@@ -1,17 +1,11 @@
-import { CheckCircle, AlertCircle, XCircle, Globe, Lock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
-import { Talent } from '@/hooks/useTalentProfile';
-import { useState } from 'react';
-import { Checkbox } from '@/components/ui/checkbox';
-import axiosInstance from '@/app/utils/axios';
-
-interface Media {
-  id: string;
-  type: 'IMAGE' | 'VIDEO' | 'AUDIO';
-  url: string;
-  description?: string;
-}
+import { CheckCircle, AlertCircle, XCircle, Globe, Lock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import axiosInstance from "@/app/utils/axios";
+import type { Media, Talent } from "@/types/prismaTypes";
+import { toast } from "sonner";
 
 interface ProfileOverviewEditorProps {
   setActiveSection: (section: string) => void;
@@ -19,6 +13,7 @@ interface ProfileOverviewEditorProps {
   images: Media[];
   videos: Media[];
   audioFiles: Media[];
+  refreshTalentData?: () => Promise<Talent | undefined>;
 }
 
 export default function ProfileOverviewEditor({
@@ -27,9 +22,11 @@ export default function ProfileOverviewEditor({
   images = [],
   videos = [],
   audioFiles = [],
+  refreshTalentData,
 }: ProfileOverviewEditorProps) {
   const router = useRouter();
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+  const [isPublic, setIsPublic] = useState<boolean>(talent?.isPublic || false);
 
   if (!talent) {
     return (
@@ -41,7 +38,7 @@ export default function ProfileOverviewEditor({
           <p className="text-gray-600 mb-6">
             You don&apos;t have a talent profile yet.
           </p>
-          <Button onClick={() => router.push('/join')}>
+          <Button onClick={() => router.push("/join")}>
             Create a Talent Profile
           </Button>
         </div>
@@ -53,8 +50,8 @@ export default function ProfileOverviewEditor({
   const hasRequiredBasicInfo =
     talent.firstName &&
     talent.lastName &&
-    talent.generalCategory &&
-    talent.specificCategory &&
+    ((talent.categories && talent.categories.length > 0) ||
+      (talent.generalCategory && talent.specificCategory)) &&
     talent.serviceName &&
     talent.address &&
     talent.phoneNumber &&
@@ -91,16 +88,30 @@ export default function ProfileOverviewEditor({
   const handleVisibilityToggle = async () => {
     try {
       setIsUpdatingVisibility(true);
+      const newIsPublic = !isPublic;
 
+      // Make the API call to update the visibility
       await axiosInstance.patch(`/talents/${talent.talentId}`, {
-        isPublic: !talent.isPublic,
+        isPublic: newIsPublic,
       });
 
-      // Force a page reload to refresh the talent data
-      window.location.reload();
+      // Update local state
+      setIsPublic(newIsPublic);
+
+      // Show success message
+      toast.success(
+        newIsPublic
+          ? "Your profile is now public and visible to everyone"
+          : "Your profile is now private"
+      );
+
+      // Refresh talent data if the refreshTalentData function is provided
+      if (refreshTalentData) {
+        await refreshTalentData();
+      }
     } catch (error) {
-      console.error('Failed to update profile visibility:', error);
-      alert('Failed to update profile visibility. Please try again.');
+      console.error("Failed to update profile visibility:", error);
+      toast.error("Failed to update profile visibility. Please try again.");
     } finally {
       setIsUpdatingVisibility(false);
     }
@@ -123,10 +134,10 @@ export default function ProfileOverviewEditor({
           <div className="flex items-center">
             <div
               className={`p-2 rounded-full mr-4 ${
-                talent.isPublic ? 'bg-green-100' : 'bg-gray-100'
+                isPublic ? "bg-green-100" : "bg-gray-100"
               }`}
             >
-              {talent.isPublic ? (
+              {isPublic ? (
                 <Globe className="h-6 w-6 text-green-600" />
               ) : (
                 <Lock className="h-6 w-6 text-gray-600" />
@@ -135,34 +146,34 @@ export default function ProfileOverviewEditor({
 
             <div className="flex-grow">
               <h3 className="font-medium">
-                {talent.isPublic ? 'Public Profile' : 'Private Profile'}
+                {isPublic ? "Public Profile" : "Private Profile"}
               </h3>
               <p className="text-sm text-gray-500">
-                {talent.isPublic
-                  ? 'Your profile is visible to everyone.'
-                  : 'Your profile is only visible to you and administrators.'}
+                {isPublic
+                  ? "Your profile is visible to everyone."
+                  : "Your profile is only visible to you and administrators."}
               </p>
             </div>
 
             <div className="flex items-center space-x-2 cursor-pointer">
               <Checkbox
                 id="public-toggle"
-                checked={talent.isPublic}
-                disabled={isUpdatingVisibility || talent.status !== 'APPROVED'}
+                checked={isPublic}
+                disabled={isUpdatingVisibility || talent.status !== "APPROVED"}
                 onCheckedChange={handleVisibilityToggle}
                 className={`${
-                  talent.isPublic
-                    ? 'bg-green-500 border-green-500'
-                    : 'bg-gray-200 border-gray-200'
+                  isPublic
+                    ? "bg-green-500 border-green-500"
+                    : "bg-gray-200 border-gray-200"
                 } size-6 rounded-full`}
               />
               <label htmlFor="public-toggle" className="text-sm text-gray-600">
-                {isUpdatingVisibility ? 'Updating...' : 'Toggle visibility'}
+                {isUpdatingVisibility ? "Updating..." : "Toggle visibility"}
               </label>
             </div>
           </div>
 
-          {talent.status !== 'APPROVED' && (
+          {talent.status !== "APPROVED" && (
             <p className="mt-2 text-sm text-amber-600">
               Note: Your profile must be approved before it can be made public.
             </p>
@@ -186,13 +197,13 @@ export default function ProfileOverviewEditor({
                   <h3 className="font-medium">Basic Information</h3>
                   <p className="text-sm text-gray-500">
                     {hasRequiredBasicInfo
-                      ? 'Your basic information is complete.'
-                      : 'Please complete your basic information (name, categories, etc.)'}
+                      ? "Your basic information is complete."
+                      : "Please complete your basic information (name, categories, etc.)"}
                   </p>
                   {!hasRequiredBasicInfo && (
                     <Button
                       variant="link"
-                      onClick={() => setActiveSection('general')}
+                      onClick={() => setActiveSection("general")}
                       className="text-sm p-0 h-auto mt-1"
                     >
                       Complete basic information
@@ -212,13 +223,13 @@ export default function ProfileOverviewEditor({
                   <h3 className="font-medium">Profile Details</h3>
                   <p className="text-sm text-gray-500">
                     {hasRequiredDetails
-                      ? 'Your profile details are complete.'
-                      : 'Please add more details to your profile (services, availability, hourlyRate, etc.)'}
+                      ? "Your profile details are complete."
+                      : "Please add more details to your profile (services, availability, hourlyRate, etc.)"}
                   </p>
                   {!hasRequiredDetails && (
                     <Button
                       variant="link"
-                      onClick={() => setActiveSection('details')}
+                      onClick={() => setActiveSection("details")}
                       className="text-sm p-0 h-auto mt-1"
                     >
                       Complete profile details
@@ -242,7 +253,7 @@ export default function ProfileOverviewEditor({
                   <h3 className="font-medium">Photos</h3>
                   <p className="text-sm text-gray-500">
                     {!hasAnyImages
-                      ? 'You have no photos. Please add at least 4 photos.'
+                      ? "You have no photos. Please add at least 4 photos."
                       : !hasEnoughImages
                       ? `You have ${
                           images.length
@@ -255,14 +266,14 @@ export default function ProfileOverviewEditor({
                   </p>
                   <Button
                     variant="link"
-                    onClick={() => setActiveSection('photos')}
+                    onClick={() => setActiveSection("photos")}
                     className="text-sm p-0 h-auto mt-1"
                   >
                     {!hasAnyImages || !hasEnoughImages
-                      ? 'Add more photos'
+                      ? "Add more photos"
                       : hasTooManyImages
-                      ? 'Manage photos'
-                      : 'View photos'}
+                      ? "Manage photos"
+                      : "View photos"}
                   </Button>
                 </div>
               </div>
@@ -282,7 +293,7 @@ export default function ProfileOverviewEditor({
                   <h3 className="font-medium">Videos</h3>
                   <p className="text-sm text-gray-500">
                     {!hasAnyVideos
-                      ? 'You have no videos. Please add at least 2 videos.'
+                      ? "You have no videos. Please add at least 2 videos."
                       : !hasEnoughVideos
                       ? `You have ${
                           videos.length
@@ -295,14 +306,14 @@ export default function ProfileOverviewEditor({
                   </p>
                   <Button
                     variant="link"
-                    onClick={() => setActiveSection('videos')}
+                    onClick={() => setActiveSection("videos")}
                     className="text-sm p-0 h-auto mt-1"
                   >
                     {!hasAnyVideos || !hasEnoughVideos
-                      ? 'Add more videos'
+                      ? "Add more videos"
                       : hasTooManyVideos
-                      ? 'Manage videos'
-                      : 'View videos'}
+                      ? "Manage videos"
+                      : "View videos"}
                   </Button>
                 </div>
               </div>
@@ -322,7 +333,7 @@ export default function ProfileOverviewEditor({
                   <h3 className="font-medium">Audio Files</h3>
                   <p className="text-sm text-gray-500">
                     {!hasAnyAudio
-                      ? 'You have no audio files. Please add at least 2 audio files.'
+                      ? "You have no audio files. Please add at least 2 audio files."
                       : !hasEnoughAudio
                       ? `You have ${
                           audioFiles.length
@@ -335,14 +346,14 @@ export default function ProfileOverviewEditor({
                   </p>
                   <Button
                     variant="link"
-                    onClick={() => setActiveSection('audio')}
+                    onClick={() => setActiveSection("audio")}
                     className="text-sm p-0 h-auto mt-1"
                   >
                     {!hasAnyAudio || !hasEnoughAudio
-                      ? 'Add more audio files'
+                      ? "Add more audio files"
                       : hasTooManyAudio
-                      ? 'Manage audio files'
-                      : 'View audio files'}
+                      ? "Manage audio files"
+                      : "View audio files"}
                   </Button>
                 </div>
               </div>
@@ -356,16 +367,16 @@ export default function ProfileOverviewEditor({
             <div className="flex items-center">
               <div
                 className={`p-2 rounded-full mr-4 ${
-                  talent.status === 'APPROVED'
-                    ? 'bg-green-100'
-                    : talent.status === 'REJECTED'
-                    ? 'bg-red-100'
-                    : 'bg-amber-100'
+                  talent.status === "APPROVED"
+                    ? "bg-green-100"
+                    : talent.status === "REJECTED"
+                    ? "bg-red-100"
+                    : "bg-amber-100"
                 }`}
               >
-                {talent.status === 'APPROVED' ? (
+                {talent.status === "APPROVED" ? (
                   <CheckCircle className="h-6 w-6 text-green-600" />
-                ) : talent.status === 'REJECTED' ? (
+                ) : talent.status === "REJECTED" ? (
                   <XCircle className="h-6 w-6 text-red-600" />
                 ) : (
                   <AlertCircle className="h-6 w-6 text-amber-600" />
@@ -374,19 +385,19 @@ export default function ProfileOverviewEditor({
 
               <div>
                 <h3 className="font-medium">
-                  {talent.status === 'APPROVED'
-                    ? 'Approved'
-                    : talent.status === 'REJECTED'
-                    ? 'Rejected'
-                    : 'Pending Review'}
+                  {talent.status === "APPROVED"
+                    ? "Approved"
+                    : talent.status === "REJECTED"
+                    ? "Rejected"
+                    : "Pending Review"}
                 </h3>
 
-                {talent.status === 'REJECTED' && (
+                {talent.status === "REJECTED" && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="mt-2"
-                    onClick={() => setActiveSection('general')}
+                    onClick={() => setActiveSection("general")}
                   >
                     Update Profile
                   </Button>
@@ -402,7 +413,7 @@ export default function ProfileOverviewEditor({
             <div className="flex items-center">
               <div
                 className={`p-2 rounded-full mr-4 ${
-                  talent.isEmailVerified ? 'bg-green-100' : 'bg-amber-100'
+                  talent.isEmailVerified ? "bg-green-100" : "bg-amber-100"
                 }`}
               >
                 {talent.isEmailVerified ? (
@@ -415,13 +426,13 @@ export default function ProfileOverviewEditor({
               <div>
                 <h3 className="font-medium">
                   {talent.isEmailVerified
-                    ? 'Email Verified'
-                    : 'Email Not Verified'}
+                    ? "Email Verified"
+                    : "Email Not Verified"}
                 </h3>
                 <p className="text-sm text-gray-500">
                   {talent.isEmailVerified
-                    ? 'Your email has been verified.'
-                    : 'Please check your email for a verification link.'}
+                    ? "Your email has been verified."
+                    : "Please check your email for a verification link."}
                 </p>
 
                 {!talent.isEmailVerified && (
@@ -433,7 +444,7 @@ export default function ProfileOverviewEditor({
                     onClick={() => {
                       // Add verification resend logic here
                       alert(
-                        'Verification email resent. Please check your inbox.'
+                        "Verification email resent. Please check your inbox."
                       );
                     }}
                   >
@@ -447,13 +458,13 @@ export default function ProfileOverviewEditor({
           {/* Overall Status */}
           <div
             className={`rounded-md p-6 ${
-              isProfileComplete && talent.status === 'APPROVED'
-                ? 'bg-green-50 border-green-200 border'
-                : 'bg-amber-50 border-amber-200 border'
+              isProfileComplete && talent.status === "APPROVED"
+                ? "bg-green-50 border-green-200 border"
+                : "bg-amber-50 border-amber-200 border"
             }`}
           >
             <div className="flex items-center">
-              {isProfileComplete && talent.status === 'APPROVED' ? (
+              {isProfileComplete && talent.status === "APPROVED" ? (
                 <CheckCircle className="h-8 w-8 text-green-600 mr-4" />
               ) : (
                 <AlertCircle className="h-8 w-8 text-amber-600 mr-4" />
@@ -461,14 +472,14 @@ export default function ProfileOverviewEditor({
 
               <div>
                 <h2 className="text-xl font-semibold">
-                  {isProfileComplete && talent.status === 'APPROVED'
-                    ? 'Your profile is complete and live!'
-                    : 'Your profile needs attention'}
+                  {isProfileComplete && talent.status === "APPROVED"
+                    ? "Your profile is complete and live!"
+                    : "Your profile needs attention"}
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  {isProfileComplete && talent.status === 'APPROVED'
-                    ? 'Congratulations! Your profile is complete and approved. Customers can now find you.'
-                    : 'Please complete all required sections and wait for admin approval to make your profile live.'}
+                  {isProfileComplete && talent.status === "APPROVED"
+                    ? "Congratulations! Your profile is complete and approved. Customers can now find you."
+                    : "Please complete all required sections and wait for admin approval to make your profile live."}
                 </p>
               </div>
             </div>
