@@ -8,7 +8,6 @@ import {
 import { CalendarEventType } from '@prisma/client';
 
 export class UpdateCalendarEventDto {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   @IsEnum(CalendarEventType)
   @IsOptional()
   type?: CalendarEventType; // "available" | "unavailable" | "booked" | etc.

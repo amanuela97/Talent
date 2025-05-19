@@ -35,7 +35,6 @@ export class UpdateTalentDto {
   @IsString()
   phoneNumber?: string;
 
-
   @IsOptional()
   @IsString()
   bio?: string;

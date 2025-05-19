@@ -25,17 +25,19 @@ export class BookingsService {
    */
   async createBooking(createBookingDto: CreateBookingDto, userId: string) {
     // Check if talent exists
-    const talent = await this.prisma.talent.findUnique({
-      where: { talentId: createBookingDto.talentId },
-      select: {
-        talentId: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        hourlyRate: true,
-        serviceName: true,
-      },
-    });
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId: createBookingDto.talentId },
+        select: {
+          talentId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          hourlyRate: true,
+          serviceName: true,
+        },
+      }),
+    );
 
     if (!talent) {
       throw new NotFoundException(
@@ -43,74 +45,95 @@ export class BookingsService {
       );
     }
 
-    // Check if user exists
-    const user = await this.prisma.user.findUnique({
-      where: { userId },
-      select: {
-        userId: true,
-        name: true,
-        email: true,
-      },
-    });
+    // Check if user exists and get their role
+    const user = await this.prisma.safeQuery(() =>
+      this.prisma.user.findUnique({
+        where: { userId },
+        select: {
+          userId: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      }),
+    );
 
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
+    // Prevent talents from booking themselves
+    if (
+      user.role === Role.TALENT &&
+      user.userId === createBookingDto.talentId
+    ) {
+      throw new ForbiddenException('Talents cannot book themselves');
+    }
+
     try {
       // Calculate booking details
       const startDate = new Date(createBookingDto.eventDate);
+      const [hours, minutes] = createBookingDto.eventTime
+        .split(':')
+        .map(Number);
+      startDate.setHours(hours, minutes);
+
       const endDate = new Date(startDate);
       endDate.setHours(endDate.getHours() + createBookingDto.duration);
 
       // Create booking
-      const booking = await this.prisma.eventBooking.create({
-        data: {
-          clientId: userId,
-          talentId: createBookingDto.talentId,
-          eventDate: startDate,
-          eventType: createBookingDto.eventType,
-          equipmentNeeded: createBookingDto.equipmentNeeded,
-          duration: createBookingDto.duration,
-          location: createBookingDto.location,
-          guestCount: createBookingDto.guestCount,
-          serviceRequirements: createBookingDto.serviceRequirements,
-          additionalComments: createBookingDto.additionalComments,
-          budgetAmount: createBookingDto.budgetAmount,
-          budgetRange: createBookingDto.budgetRange,
-          status: createBookingDto.status,
-        },
-        include: {
-          client: {
-            select: {
-              name: true,
-              email: true,
+      const booking = await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.create({
+          data: {
+            clientId: userId,
+            talentId: createBookingDto.talentId,
+            eventTime: createBookingDto.eventTime,
+            eventDate: createBookingDto.eventDate,
+            eventType: createBookingDto.eventType,
+            equipmentNeeded: createBookingDto.equipmentNeeded,
+            duration: createBookingDto.duration,
+            location: createBookingDto.location,
+            guestCount: createBookingDto.guestCount,
+            serviceRequirements: createBookingDto.serviceRequirements,
+            additionalComments: createBookingDto.additionalComments,
+            budgetAmount: createBookingDto.budgetAmount,
+            budgetRange: createBookingDto.budgetRange,
+            status: 'PENDING',
+          },
+          include: {
+            client: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+            talent: {
+              select: {
+                firstName: true,
+                lastName: true,
+                email: true,
+                serviceName: true,
+              },
             },
           },
-          talent: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true,
-              serviceName: true,
-            },
-          },
-        },
-      });
+        }),
+      );
 
       // Create calendar event for talent (marked as BOOKED but requires confirmation)
-      await this.prisma.calendarEvent.create({
-        data: {
-          talentId: createBookingDto.talentId,
-          type: 'BOOKED',
-          title: `Booking: ${createBookingDto.eventType} (Pending)`,
-          start: startDate,
-          end: endDate,
-          clientName: user.name,
-          color: '#3b82f6', // blue (use the color from your existing calendar component)
-          isAllDay: false,
-        },
-      });
+      await this.prisma.safeQuery(() =>
+        this.prisma.calendarEvent.create({
+          data: {
+            talentId: createBookingDto.talentId,
+            type: 'BOOKED',
+            title: `Booking: ${createBookingDto.eventType} (Pending)`,
+            start: startDate,
+            end: endDate,
+            clientName: user.name,
+            color: '#3b82f6', // blue (use the color from your existing calendar component)
+            isAllDay: false,
+          },
+        }),
+      );
 
       // Send email notification to talent
       if (!talent.email) {
@@ -170,8 +193,9 @@ export class BookingsService {
     }
 
     if (
-      typeof status !== 'string' ||
-      !Object.values(BookingStatus).includes(status)
+      status &&
+      (typeof status !== 'string' ||
+        !Object.values(BookingStatus).includes(status))
     ) {
       throw new BadRequestException('Invalid booking status');
     }
@@ -181,28 +205,30 @@ export class BookingsService {
       whereClause.status = status;
     }
 
-    const bookings = await this.prisma.eventBooking.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        client: {
-          select: {
-            name: true,
-            email: true,
-            profilePicture: true,
+    const bookings = await this.prisma.safeQuery(() =>
+      this.prisma.eventBooking.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          client: {
+            select: {
+              name: true,
+              email: true,
+              profilePicture: true,
+            },
+          },
+          talent: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              serviceName: true,
+              talentProfilePicture: true,
+            },
           },
         },
-        talent: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
-            serviceName: true,
-            talentProfilePicture: true,
-          },
-        },
-      },
-    });
+      }),
+    );
 
     return bookings;
   }
@@ -211,30 +237,32 @@ export class BookingsService {
    * Get booking details by ID
    */
   async getBookingById(bookingId: string, userId: string, role: Role) {
-    const booking = await this.prisma.eventBooking.findUnique({
-      where: { bookingId },
-      include: {
-        client: {
-          select: {
-            userId: true,
-            name: true,
-            email: true,
-            profilePicture: true,
+    const booking = await this.prisma.safeQuery(() =>
+      this.prisma.eventBooking.findUnique({
+        where: { bookingId },
+        include: {
+          client: {
+            select: {
+              userId: true,
+              name: true,
+              email: true,
+              profilePicture: true,
+            },
+          },
+          talent: {
+            select: {
+              talentId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              serviceName: true,
+              talentProfilePicture: true,
+              hourlyRate: true,
+            },
           },
         },
-        talent: {
-          select: {
-            talentId: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            serviceName: true,
-            talentProfilePicture: true,
-            hourlyRate: true,
-          },
-        },
-      },
-    });
+      }),
+    );
 
     if (!booking) {
       throw new NotFoundException(`Booking with ID ${bookingId} not found`);
@@ -263,25 +291,27 @@ export class BookingsService {
     talentId: string,
   ) {
     // Find the booking
-    const booking = await this.prisma.eventBooking.findUnique({
-      where: { bookingId },
-      include: {
-        client: {
-          select: {
-            name: true,
-            email: true,
+    const booking = await this.prisma.safeQuery(() =>
+      this.prisma.eventBooking.findUnique({
+        where: { bookingId },
+        include: {
+          client: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          talent: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              serviceName: true,
+            },
           },
         },
-        talent: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
-            serviceName: true,
-          },
-        },
-      },
-    });
+      }),
+    );
 
     if (!booking) {
       throw new NotFoundException(`Booking with ID ${bookingId} not found`);
@@ -302,54 +332,62 @@ export class BookingsService {
     }
 
     // Update booking status
-    const updatedBooking = await this.prisma.eventBooking.update({
-      where: { bookingId },
-      data: { status: status },
-      include: {
-        client: {
-          select: {
-            name: true,
-            email: true,
+    const updatedBooking = await this.prisma.safeQuery(() =>
+      this.prisma.eventBooking.update({
+        where: { bookingId },
+        data: { status: status },
+        include: {
+          client: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          talent: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              serviceName: true,
+            },
           },
         },
-        talent: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
-            serviceName: true,
-          },
-        },
-      },
-    });
+      }),
+    );
 
     // Update calendar event
     try {
       // Find the corresponding calendar event
-      const calendarEvent = await this.prisma.calendarEvent.findFirst({
-        where: {
-          talentId,
-          start: booking.eventDate
-            ? new Date(String(booking.eventDate))
-            : new Date(),
-          type: 'BOOKED',
-        },
-      });
+      const calendarEvent = await this.prisma.safeQuery(() =>
+        this.prisma.calendarEvent.findFirst({
+          where: {
+            talentId,
+            start: booking.eventDate
+              ? new Date(String(booking.eventDate))
+              : new Date(),
+            type: 'BOOKED',
+          },
+        }),
+      );
 
       if (calendarEvent) {
         // Update the event title based on new status
-        await this.prisma.calendarEvent.update({
-          where: { id: calendarEvent.id },
-          data: {
-            title: `Booking: ${booking.eventType} (${status})`,
-          },
-        });
+        await this.prisma.safeQuery(() =>
+          this.prisma.calendarEvent.update({
+            where: { id: calendarEvent.id },
+            data: {
+              title: `Booking: ${booking.eventType} (${status})`,
+            },
+          }),
+        );
 
         // If booking is rejected or cancelled, delete the calendar event
         if (status === 'REJECTED' || status === 'CANCELLED') {
-          await this.prisma.calendarEvent.delete({
-            where: { id: calendarEvent.id },
-          });
+          await this.prisma.safeQuery(() =>
+            this.prisma.calendarEvent.delete({
+              where: { id: calendarEvent.id },
+            }),
+          );
         }
       }
     } catch (error) {
@@ -366,9 +404,7 @@ export class BookingsService {
             talentName: `${booking.talent.firstName || ''} ${booking.talent.lastName || ''}`,
             serviceName: booking.talent.serviceName || '',
             eventType: booking.eventType,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
             eventDate: booking.eventDate.toLocaleDateString(),
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
             eventTime: booking.eventDate.toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -385,7 +421,6 @@ export class BookingsService {
             talentName: `${booking.talent.firstName} ${booking.talent.lastName}`,
             serviceName: booking.talent.serviceName,
             eventType: booking.eventType,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
             eventDate: booking.eventDate.toLocaleDateString(),
           },
         );
@@ -405,8 +440,9 @@ export class BookingsService {
     const whereClause: Prisma.EventBookingWhereInput = { talentId };
 
     if (
-      typeof status !== 'string' ||
-      !Object.values(BookingStatus).includes(status)
+      status &&
+      (typeof status !== 'string' ||
+        !Object.values(BookingStatus).includes(status))
     ) {
       throw new BadRequestException('Invalid booking status');
     }
@@ -416,27 +452,29 @@ export class BookingsService {
       whereClause.status = status;
     }
 
-    const bookings = await this.prisma.eventBooking.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        client: {
-          select: {
-            name: true,
-            email: true,
-            profilePicture: true,
+    const bookings = await this.prisma.safeQuery(() =>
+      this.prisma.eventBooking.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          client: {
+            select: {
+              name: true,
+              email: true,
+              profilePicture: true,
+            },
+          },
+          talent: {
+            select: {
+              firstName: true,
+              lastName: true,
+              serviceName: true,
+              talentProfilePicture: true,
+            },
           },
         },
-        talent: {
-          select: {
-            firstName: true,
-            lastName: true,
-            serviceName: true,
-            talentProfilePicture: true,
-          },
-        },
-      },
-    });
+      }),
+    );
 
     return bookings;
   }
@@ -447,9 +485,11 @@ export class BookingsService {
   ): Promise<EventBooking> {
     try {
       // Check if talent exists
-      const talent = await this.prisma.talent.findUnique({
-        where: { talentId: createBookingDto.talentId },
-      });
+      const talent = await this.prisma.safeQuery(() =>
+        this.prisma.talent.findUnique({
+          where: { talentId: createBookingDto.talentId },
+        }),
+      );
 
       if (!talent) {
         throw new NotFoundException(
@@ -458,26 +498,30 @@ export class BookingsService {
       }
 
       // Check if client exists
-      const client = await this.prisma.user.findUnique({
-        where: { userId: clientId },
-      });
+      const client = await this.prisma.safeQuery(() =>
+        this.prisma.user.findUnique({
+          where: { userId: clientId },
+        }),
+      );
 
       if (!client) {
         throw new NotFoundException(`Client with ID ${clientId} not found`);
       }
 
       // Create the booking
-      return await this.prisma.eventBooking.create({
-        data: {
-          clientId: clientId,
-          ...createBookingDto,
-          status: BookingStatus.PENDING,
-        },
-        include: {
-          talent: true,
-          client: true,
-        },
-      });
+      return await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.create({
+          data: {
+            clientId: clientId,
+            ...createBookingDto,
+            status: BookingStatus.PENDING,
+          },
+          include: {
+            talent: true,
+            client: true,
+          },
+        }),
+      );
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -502,32 +546,36 @@ export class BookingsService {
     };
 
     const [bookings, total] = await Promise.all([
-      this.prisma.eventBooking.findMany({
-        where,
-        skip,
-        take,
-        include: {
-          talent: true,
-          client: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      }),
-      this.prisma.eventBooking.count({ where }),
+      this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.findMany({
+          where,
+          skip,
+          take,
+          include: {
+            talent: true,
+            client: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        }),
+      ),
+      this.prisma.safeQuery(() => this.prisma.eventBooking.count({ where })),
     ]);
 
     return { bookings, total };
   }
 
   async findOne(id: string): Promise<EventBooking> {
-    const booking = await this.prisma.eventBooking.findUnique({
-      where: { bookingId: id },
-      include: {
-        talent: true,
-        client: true,
-      },
-    });
+    const booking = await this.prisma.safeQuery(() =>
+      this.prisma.eventBooking.findUnique({
+        where: { bookingId: id },
+        include: {
+          talent: true,
+          client: true,
+        },
+      }),
+    );
 
     if (!booking) {
       throw new NotFoundException(`Booking with ID ${id} not found`);
@@ -542,23 +590,27 @@ export class BookingsService {
   ): Promise<EventBooking> {
     try {
       // Check if booking exists
-      const booking = await this.prisma.eventBooking.findUnique({
-        where: { bookingId: id },
-      });
+      const booking = await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.findUnique({
+          where: { bookingId: id },
+        }),
+      );
 
       if (!booking) {
         throw new NotFoundException(`Booking with ID ${id} not found`);
       }
 
       // Update the booking
-      return await this.prisma.eventBooking.update({
-        where: { bookingId: id },
-        data: updateBookingDto,
-        include: {
-          talent: true,
-          client: true,
-        },
-      });
+      return await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.update({
+          where: { bookingId: id },
+          data: updateBookingDto,
+          include: {
+            talent: true,
+            client: true,
+          },
+        }),
+      );
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -569,22 +621,26 @@ export class BookingsService {
 
   async updateStatus(id: string, status: BookingStatus): Promise<EventBooking> {
     try {
-      const booking = await this.prisma.eventBooking.findUnique({
-        where: { bookingId: id },
-      });
+      const booking = await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.findUnique({
+          where: { bookingId: id },
+        }),
+      );
 
       if (!booking) {
         throw new NotFoundException(`Booking with ID ${id} not found`);
       }
 
-      return await this.prisma.eventBooking.update({
-        where: { bookingId: id },
-        data: { status },
-        include: {
-          talent: true,
-          client: true,
-        },
-      });
+      return await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.update({
+          where: { bookingId: id },
+          data: { status },
+          include: {
+            talent: true,
+            client: true,
+          },
+        }),
+      );
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -595,21 +651,25 @@ export class BookingsService {
 
   async remove(id: string): Promise<EventBooking> {
     try {
-      const booking = await this.prisma.eventBooking.findUnique({
-        where: { bookingId: id },
-      });
+      const booking = await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.findUnique({
+          where: { bookingId: id },
+        }),
+      );
 
       if (!booking) {
         throw new NotFoundException(`Booking with ID ${id} not found`);
       }
 
-      return await this.prisma.eventBooking.delete({
-        where: { bookingId: id },
-        include: {
-          talent: true,
-          client: true,
-        },
-      });
+      return await this.prisma.safeQuery(() =>
+        this.prisma.eventBooking.delete({
+          where: { bookingId: id },
+          include: {
+            talent: true,
+            client: true,
+          },
+        }),
+      );
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

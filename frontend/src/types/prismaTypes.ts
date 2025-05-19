@@ -1,6 +1,14 @@
 // This file exports types from Prisma schema for frontend use
 import { Review, User } from "@prisma/client";
 
+export enum BookingStatus {
+  PENDING = "PENDING",
+  ACCEPTED = "ACCEPTED",
+  REJECTED = "REJECTED",
+  CANCELLED = "CANCELLED",
+  COMPLETED = "COMPLETED",
+}
+
 export interface ReviewType extends Review {
   user: Partial<User>;
 }

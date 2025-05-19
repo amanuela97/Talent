@@ -78,7 +78,7 @@ export class TalentService {
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailService: MailService, // Inject MailService
-  ) { }
+  ) {}
   /**
    * Helper method to update talent profile data from DTO
    * @param updateTalentDto DTO with talent update data
@@ -122,7 +122,7 @@ export class TalentService {
       updateData.status = updateTalentDto.status;
     }
 
-    return updateData;
+    return Promise.resolve(updateData);
   }
 
   /**
@@ -271,12 +271,12 @@ export class TalentService {
       },
     });
 
-    const existingIds = existingCategories.map(cat => cat.id);
-    const missingIds = categoryIds.filter(id => !existingIds.includes(id));
+    const existingIds = existingCategories.map((cat) => cat.id);
+    const missingIds = categoryIds.filter((id) => !existingIds.includes(id));
 
     // Create missing categories with PENDING status
     if (missingIds.length > 0) {
-      const categoriesToCreate = missingIds.map(id => ({
+      const categoriesToCreate = missingIds.map((id) => ({
         id,
         name: `Category ${id}`, // Using ID as part of name since we don't have the actual name
         type: 'GENERAL' as const, // Default to GENERAL type
@@ -297,7 +297,9 @@ export class TalentService {
     });
 
     // Filter to only include ACTIVE categories for relationship creation
-    const activeCategories = allCategories.filter(category => category.status === 'ACTIVE');
+    const activeCategories = allCategories.filter(
+      (category) => category.status === 'ACTIVE',
+    );
 
     // Create the talent-category relationships only for ACTIVE categories
     const talentCategories = await this.prisma.safeQuery(() =>
@@ -377,9 +379,11 @@ export class TalentService {
     },
   ) {
     // Check if talent already exists for this user
-    const existingTalent = await this.prisma.talent.findUnique({
-      where: { talentId: userId },
-    });
+    const existingTalent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId: userId },
+      }),
+    );
 
     if (existingTalent) {
       throw new ConflictException('User already has a talent profile');
@@ -401,36 +405,40 @@ export class TalentService {
     }
 
     // Create talent profile with the profile picture URL
-    const talent = await this.prisma.talent.create({
-      data: {
-        talentId: userId,
-        firstName: createTalentDto.firstName,
-        lastName: createTalentDto.lastName,
-        email: createTalentDto.email,
-        talentProfilePicture: profilePictureUrl,
-        serviceName: createTalentDto.serviceName,
-        address: createTalentDto.address,
-        phoneNumber: createTalentDto.phoneNumber,
-        status: createTalentDto.status,
-        isEmailVerified: createTalentDto.isEmailVerified,
-        isPublic: createTalentDto.isPublic,
-        verificationToken:
-          createTalentDto.verificationToken || crypto.randomUUID(),
-        languagesSpoken: createTalentDto.languagesSpoken,
-        bio: createTalentDto.bio,
-        services: createTalentDto.services,
-        hourlyRate: createTalentDto.hourlyRate,
-        city: createTalentDto.city,
-        availability: createTalentDto.availability,
-        socialLinks: createTalentDto.socialLinks,
-        isOnline: createTalentDto.isOnline,
-      },
-    });
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.create({
+        data: {
+          talentId: userId,
+          firstName: createTalentDto.firstName,
+          lastName: createTalentDto.lastName,
+          email: createTalentDto.email,
+          talentProfilePicture: profilePictureUrl,
+          serviceName: createTalentDto.serviceName,
+          address: createTalentDto.address,
+          phoneNumber: createTalentDto.phoneNumber,
+          status: createTalentDto.status,
+          isEmailVerified: createTalentDto.isEmailVerified,
+          isPublic: createTalentDto.isPublic,
+          verificationToken:
+            createTalentDto.verificationToken || crypto.randomUUID(),
+          languagesSpoken: createTalentDto.languagesSpoken,
+          bio: createTalentDto.bio,
+          services: createTalentDto.services,
+          hourlyRate: createTalentDto.hourlyRate,
+          city: createTalentDto.city,
+          availability: createTalentDto.availability,
+          socialLinks: createTalentDto.socialLinks,
+          isOnline: createTalentDto.isOnline,
+        },
+      }),
+    );
 
     // Add categories if provided
     if (
-      (createTalentDto.generalCategories && createTalentDto.generalCategories.length > 0) ||
-      (createTalentDto.specificCategories && createTalentDto.specificCategories.length > 0)
+      (createTalentDto.generalCategories &&
+        createTalentDto.generalCategories.length > 0) ||
+      (createTalentDto.specificCategories &&
+        createTalentDto.specificCategories.length > 0)
     ) {
       await this.assignCategoriesToTalent(
         talent.talentId,
@@ -491,7 +499,7 @@ export class TalentService {
     const talent = await this.prisma.safeQuery(() =>
       this.prisma.talent.findUnique({
         where: { talentId: id },
-      })
+      }),
     );
 
     if (!talent) {
@@ -520,7 +528,7 @@ export class TalentService {
       this.prisma.talent.update({
         where: { talentId: id },
         data: updateData,
-      })
+      }),
     );
 
     // Handle categories if provided
@@ -535,10 +543,7 @@ export class TalentService {
       }
 
       // Then add the new categories
-      await this.assignCategoriesToTalent(
-        id,
-        updateTalentDto.categories,
-      );
+      await this.assignCategoriesToTalent(id, updateTalentDto.categories);
     }
 
     // Handle removed categories if specified
@@ -887,34 +892,36 @@ export class TalentService {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
 
-    const talent = await this.prisma.talent.findFirst({
-      where: {
-        serviceName: {
-          equals: decodedServiceName,
-          mode: 'insensitive',
-        },
-        isPublic: true,
-        status: 'APPROVED',
-        isEmailVerified: true,
-      },
-      include: {
-        media: true,
-        reviews: {
-          take: 2, // Initially load just a few reviews
-          orderBy: {
-            createdAt: 'desc',
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findFirst({
+        where: {
+          serviceName: {
+            equals: decodedServiceName,
+            mode: 'insensitive',
           },
-          include: {
-            user: {
-              select: {
-                name: true,
-                profilePicture: true,
+          isPublic: true,
+          status: 'APPROVED',
+          isEmailVerified: true,
+        },
+        include: {
+          media: true,
+          reviews: {
+            take: 2, // Initially load just a few reviews
+            orderBy: {
+              createdAt: 'desc',
+            },
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  profilePicture: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+    );
 
     if (!talent) {
       throw new NotFoundException(
@@ -942,39 +949,41 @@ export class TalentService {
    */
   async findOne(talentId: string) {
     try {
-      const talent = await this.prisma.talent.findUnique({
-        where: { talentId },
-        include: {
-          media: true,
-          user: {
-            select: {
-              name: true,
-              profilePicture: true,
-              email: true,
-              createdAt: true,
-            },
-          },
-          reviews: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  profilePicture: true,
-                },
+      const talent = await this.prisma.safeQuery(() =>
+        this.prisma.talent.findUnique({
+          where: { talentId },
+          include: {
+            media: true,
+            user: {
+              select: {
+                name: true,
+                profilePicture: true,
+                email: true,
+                createdAt: true,
               },
-              replies: true,
             },
-            orderBy: {
-              createdAt: 'desc',
+            reviews: {
+              include: {
+                user: {
+                  select: {
+                    name: true,
+                    profilePicture: true,
+                  },
+                },
+                replies: true,
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            },
+            categories: {
+              include: {
+                category: true,
+              },
             },
           },
-          categories: {
-            include: {
-              category: true,
-            },
-          },
-        },
-      });
+        }),
+      );
 
       if (!talent) {
         throw new NotFoundException(`Talent with ID ${talentId} not found`);
@@ -982,15 +991,11 @@ export class TalentService {
 
       return talent;
     } catch (error) {
-      // If the error is already a NotFoundException, rethrow it
       if (error instanceof NotFoundException) {
         throw error;
       }
 
-      // Log the original error
       console.error(`Error fetching talent with ID ${talentId}`, error);
-
-      // Throw a generic error
       throw new InternalServerErrorException('Error retrieving talent profile');
     }
   }
@@ -999,32 +1004,34 @@ export class TalentService {
    */
   async findByUserId(userId: string) {
     try {
-      const talent = await this.prisma.talent.findUnique({
-        where: { talentId: userId }, // In your schema, talentId is the same as userId
-        include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-              profilePicture: true,
+      const talent = await this.prisma.safeQuery(() =>
+        this.prisma.talent.findUnique({
+          where: { talentId: userId }, // In your schema, talentId is the same as userId
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true,
+                profilePicture: true,
+              },
+            },
+            // Include categories
+            categories: {
+              include: {
+                category: true,
+              },
+            },
+            // Only include basic details for status checks
+            // This reduces the query complexity
+            media: {
+              take: 1, // Just check if there's any media
+              select: {
+                id: true,
+              },
             },
           },
-          // Include categories
-          categories: {
-            include: {
-              category: true,
-            },
-          },
-          // Only include basic details for status checks
-          // This reduces the query complexity
-          media: {
-            take: 1, // Just check if there's any media
-            select: {
-              id: true,
-            },
-          },
-        },
-      });
+        }),
+      );
 
       // If no talent is found, throw a NotFoundException
       if (!talent) {
@@ -1138,35 +1145,41 @@ export class TalentService {
    */
   async getTalentReviews(talentId: string, page = 1, limit = 5) {
     // Check if talent exists
-    const talent = await this.prisma.talent.findUnique({
-      where: { talentId },
-      select: { talentId: true, rating: true },
-    });
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId },
+        select: { talentId: true, rating: true },
+      }),
+    );
 
     if (!talent) {
       throw new NotFoundException(`Talent with ID ${talentId} not found`);
     }
 
     // Get total review count
-    const totalReviews = await this.prisma.review.count({
-      where: { talentReviewId: talentId },
-    });
+    const totalReviews = await this.prisma.safeQuery(() =>
+      this.prisma.review.count({
+        where: { talentReviewId: talentId },
+      }),
+    );
 
     // Get reviews with pagination
-    const reviews = await this.prisma.review.findMany({
-      where: { talentReviewId: talentId },
-      take: limit,
-      skip: (page - 1) * limit,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: {
-            name: true,
-            profilePicture: true,
+    const reviews = await this.prisma.safeQuery(() =>
+      this.prisma.review.findMany({
+        where: { talentReviewId: talentId },
+        take: limit,
+        skip: (page - 1) * limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              name: true,
+              profilePicture: true,
+            },
           },
         },
-      },
-    });
+      }),
+    );
 
     // Format reviews to match expected structure
     const formattedReviews = reviews.map((review) => ({
@@ -1201,33 +1214,39 @@ export class TalentService {
     comment: string,
   ) {
     // Check if talent exists
-    const talent = await this.prisma.talent.findUnique({
-      where: { talentId },
-      select: { talentId: true },
-    });
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId },
+        select: { talentId: true },
+      }),
+    );
 
     if (!talent) {
       throw new NotFoundException(`Talent with ID ${talentId} not found`);
     }
 
     // Check if user has already reviewed this talent
-    const existingReview = await this.prisma.review.findFirst({
-      where: {
-        talentReviewId: talentId,
-        userRevieweId: userId,
-      },
-    });
+    const existingReview = await this.prisma.safeQuery(() =>
+      this.prisma.review.findFirst({
+        where: {
+          talentReviewId: talentId,
+          userRevieweId: userId,
+        },
+      }),
+    );
 
     // If user has already reviewed, update the existing review
     if (existingReview) {
-      const updatedReview = await this.prisma.review.update({
-        where: { reviewId: existingReview.reviewId },
-        data: {
-          rating,
-          comment,
-          createdAt: new Date(),
-        },
-      });
+      const updatedReview = await this.prisma.safeQuery(() =>
+        this.prisma.review.update({
+          where: { reviewId: existingReview.reviewId },
+          data: {
+            rating,
+            comment,
+            createdAt: new Date(),
+          },
+        }),
+      );
 
       // Update talent's average rating
       await this.updateTalentRating(talentId);
@@ -1236,14 +1255,16 @@ export class TalentService {
     }
 
     // Otherwise, create a new review
-    const newReview = await this.prisma.review.create({
-      data: {
-        rating,
-        comment,
-        talentReviewId: talentId,
-        userRevieweId: userId,
-      },
-    });
+    const newReview = await this.prisma.safeQuery(() =>
+      this.prisma.review.create({
+        data: {
+          rating,
+          comment,
+          talentReviewId: talentId,
+          userRevieweId: userId,
+        },
+      }),
+    );
 
     // Update talent's average rating
     await this.updateTalentRating(talentId);
@@ -1256,20 +1277,24 @@ export class TalentService {
    */
   private async updateTalentRating(talentId: string) {
     // Get all reviews for this talent
-    const reviews = await this.prisma.review.findMany({
-      where: { talentReviewId: talentId },
-      select: { rating: true },
-    });
+    const reviews = await this.prisma.safeQuery(() =>
+      this.prisma.review.findMany({
+        where: { talentReviewId: talentId },
+        select: { rating: true },
+      }),
+    );
 
     // Calculate average rating
     const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
     const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
 
     // Update talent with new average rating
-    await this.prisma.talent.update({
-      where: { talentId },
-      data: { rating: averageRating },
-    });
+    await this.prisma.safeQuery(() =>
+      this.prisma.talent.update({
+        where: { talentId },
+        data: { rating: averageRating },
+      }),
+    );
   }
 
   /**
@@ -1363,21 +1388,25 @@ export class TalentService {
    * Verify email using a token
    */
   async verifyEmail(token: string) {
-    const talent = await this.prisma.talent.findFirst({
-      where: { verificationToken: token },
-    });
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findFirst({
+        where: { verificationToken: token },
+      }),
+    );
 
     if (!talent) {
       throw new NotFoundException('Invalid verification token');
     }
 
     // Update the talent record
-    return this.prisma.talent.update({
-      where: { talentId: talent.talentId },
-      data: {
-        isEmailVerified: true,
-      },
-    });
+    return this.prisma.safeQuery(() =>
+      this.prisma.talent.update({
+        where: { talentId: talent.talentId },
+        data: {
+          isEmailVerified: true,
+        },
+      }),
+    );
   }
 
   /**
@@ -1441,7 +1470,7 @@ export class TalentService {
           user.email,
           user.name,
           rejectionReason ||
-          'Your application did not meet our current requirements.',
+            'Your application did not meet our current requirements.',
         );
       }
     }
@@ -1570,10 +1599,12 @@ export class TalentService {
     }
 
     // Fetch events
-    return await this.prisma.calendarEvent.findMany({
-      where: whereClause,
-      orderBy: { start: 'asc' },
-    });
+    return await this.prisma.safeQuery(() =>
+      this.prisma.calendarEvent.findMany({
+        where: whereClause,
+        orderBy: { start: 'asc' },
+      }),
+    );
   }
 
   /**
@@ -1582,9 +1613,11 @@ export class TalentService {
    * @returns Calendar event or null if not found
    */
   async getCalendarEvent(id: string): Promise<CalendarEvent | null> {
-    return await this.prisma.calendarEvent.findUnique({
-      where: { id },
-    });
+    return await this.prisma.safeQuery(() =>
+      this.prisma.calendarEvent.findUnique({
+        where: { id },
+      }),
+    );
   }
 
   /**
@@ -1598,9 +1631,11 @@ export class TalentService {
     updateCalendarEventDto: UpdateCalendarEventDto,
   ): Promise<CalendarEvent> {
     // Check if event exists
-    const event = await this.prisma.calendarEvent.findUnique({
-      where: { id },
-    });
+    const event = await this.prisma.safeQuery(() =>
+      this.prisma.calendarEvent.findUnique({
+        where: { id },
+      }),
+    );
 
     if (!event) {
       throw new NotFoundException(`Calendar event with ID ${id} not found`);
@@ -1637,10 +1672,12 @@ export class TalentService {
       updateData.isAllDay = updateCalendarEventDto.isAllDay;
     }
 
-    return this.prisma.calendarEvent.update({
-      where: { id },
-      data: updateData,
-    });
+    return this.prisma.safeQuery(() =>
+      this.prisma.calendarEvent.update({
+        where: { id },
+        data: updateData,
+      }),
+    );
   }
 
   /**
@@ -1650,16 +1687,20 @@ export class TalentService {
    */
   async deleteCalendarEvent(id: string): Promise<CalendarEvent> {
     // Check if event exists
-    const event = await this.prisma.calendarEvent.findUnique({
-      where: { id },
-    });
+    const event = await this.prisma.safeQuery(() =>
+      this.prisma.calendarEvent.findUnique({
+        where: { id },
+      }),
+    );
 
     if (!event) {
       throw new NotFoundException(`Calendar event with ID ${id} not found`);
     }
 
-    return this.prisma.calendarEvent.delete({
-      where: { id },
-    });
+    return this.prisma.safeQuery(() =>
+      this.prisma.calendarEvent.delete({
+        where: { id },
+      }),
+    );
   }
 }

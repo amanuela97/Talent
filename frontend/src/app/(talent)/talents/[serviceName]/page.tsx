@@ -19,12 +19,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import axiosInstance from "@/app/utils/axios";
 import type { Talent } from "@/types/prismaTypes";
+import { useSession } from "next-auth/react";
 
 export default function TalentProfilePage({
   params,
 }: {
   params: Promise<{ serviceName: string }>;
 }) {
+  const { data } = useSession();
   const { serviceName } = use(params);
   const router = useRouter();
   const [talent, setTalent] = useState<Talent | null>(null);
@@ -41,7 +43,6 @@ export default function TalentProfilePage({
         // Convert underscore to spaces to match backend format
         const formattedServiceName = serviceName.replace(/_/g, " ");
 
-        console.log(formattedServiceName);
         const response = await axiosInstance.get(
           `/talents/service/${formattedServiceName}`
         );
@@ -142,12 +143,14 @@ export default function TalentProfilePage({
         <div>
           <SupportCard talent={talent} />
           <div className="mt-4 space-y-4">
-            <Button
-              onClick={handleBookRequest}
-              className="w-full cursor-pointer"
-            >
-              Book Now
-            </Button>
+            {talent.talentId !== data?.user.userId && (
+              <Button
+                onClick={handleBookRequest}
+                className="w-full cursor-pointer"
+              >
+                Book Now
+              </Button>
+            )}
 
             <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
               <DialogTrigger asChild>

@@ -1,5 +1,13 @@
 import { TalentStatus } from '@prisma/client';
-import { IsString, IsArray, IsNumber, IsObject, IsOptional, IsBoolean, IsEnum, } from 'class-validator';
+import {
+  IsString,
+  IsArray,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateTalentDto {

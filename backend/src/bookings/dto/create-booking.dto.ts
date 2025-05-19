@@ -25,8 +25,7 @@ export class CreateBookingDto {
   equipmentNeeded?: string;
 
   @IsInt()
-  @IsOptional()
-  guestCount?: number;
+  guestCount: number;
 
   @IsString()
   location: string;
@@ -36,8 +35,7 @@ export class CreateBookingDto {
   eventDate: Date;
 
   @IsString()
-  @IsOptional()
-  eventTime?: string;
+  eventTime: string;
 
   @IsInt()
   @IsNumber()
@@ -46,8 +44,7 @@ export class CreateBookingDto {
   duration: number;
 
   @IsString()
-  @IsOptional()
-  budgetRange?: string;
+  budgetRange: string;
 
   @IsNumber()
   @IsOptional()

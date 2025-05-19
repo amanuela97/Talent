@@ -1,15 +1,15 @@
-'use client';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import React from 'react';
-import { useSession } from 'next-auth/react';
-import { LogoutButton } from '../LogoutButton';
+"use client";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import React from "react";
+import { useSession } from "next-auth/react";
+import { LogoutButton } from "../LogoutButton";
 
 const HomeHeader = () => {
   const { status } = useSession();
 
-  if (status === 'loading') {
+  if (status === "loading") {
     return null;
   }
 
@@ -52,7 +52,7 @@ const HomeHeader = () => {
             About Us
           </Link>
         </nav>
-        {status === 'authenticated' ? (
+        {status === "authenticated" ? (
           <LogoutButton />
         ) : (
           <div className="flex items-center gap-4">

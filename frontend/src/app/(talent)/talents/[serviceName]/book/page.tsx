@@ -173,6 +173,15 @@ export default function BookingPage({
     }
     if (!formData.duration) {
       newErrors.duration = "Duration is required";
+    } else {
+      const duration = Number(formData.duration);
+      if (isNaN(duration) || !Number.isInteger(duration)) {
+        newErrors.duration = "Duration must be a whole number";
+      } else if (duration < 1) {
+        newErrors.duration = "Duration must be at least 1 hour";
+      } else if (duration > 24) {
+        newErrors.duration = "Duration cannot exceed 24 hours";
+      }
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -187,6 +196,13 @@ export default function BookingPage({
     if (formData.serviceRequirements.length === 0) {
       newErrors.serviceRequirements =
         "At least one service requirement is required";
+    }
+    if (
+      formData.budgetAmount &&
+      (isNaN(Number(formData.budgetAmount)) ||
+        Number(formData.budgetAmount) <= 0)
+    ) {
+      newErrors.budgetAmount = "Budget amount must be a positive number";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -231,11 +247,16 @@ export default function BookingPage({
     setLoading(true);
 
     try {
-      // Create booking
+      // Create booking with proper number conversions
       const response = await axiosInstance.post("/bookings", {
         ...formData,
+        duration: parseInt(formData.duration, 10), // Convert to integer
+        budgetAmount: formData.budgetAmount
+          ? parseFloat(formData.budgetAmount)
+          : undefined, // Convert to float if provided
+        guestCount: parseInt(formData.guestCount, 10), // Convert to integer
         talentId: finalTalentId,
-        eventDate: formData.eventDate?.toISOString(),
+        eventDate: formData.eventDate,
       });
 
       if (response.data) {

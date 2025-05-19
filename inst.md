@@ -1,49 +1,134 @@
-Initiating the Connection
-When a customer clicks “Book Now” on the talent detail page, the connection process begins.
+Pages and Functionalities by User Role
+The next step is building separate pages (or dashboards) tailored to the type of user in your system.
 
-a. Booking / Inquiry Form Page or Modal
-Build a separate page (for example, /talents/[serviceName]/book). This page has a multi step form that should capture all necessary details for the inquiry. (Build everything as components, use existing components when possible to avoid duplications)
-Essential Fields & Data Input:
-Event Details:
+A. For Talent Accounts
 
-- Event Type: (e.g., Wedding, Corporate Event, Birthday, etc.) (dropdown select from EventTypes.json)
-- What equipment will you need the performer to provide?
-- How many guests are you expecting at the event? (approximate)
-- Location: Event Location/Address: If applicable (or at least the city/region).
-- Event Date & Time: Date picker, optional time input.
-- Event Duration: How many hours or days.
-- Budget Information: Budget Range: Allow customers to submit an estimated budget or select from preset ranges.
-- Service Requirements: Specific Services Needed: (Optional checkboxes or additional text fields if the talent offers multiple services.)
-- Additional Comments: Notes/Questions: A text area where the customer can describe special requirements, questions, or any personalization that might help the talent prepare a quote.
-- After form submission, redirect the customer to a confirmation page that: Displays the details of their inquiry. Provides guidance on next steps. Suggests checking their email or dashboard regularly for status updates.
-- update the EventBooking model in schema.prisma file if missing any of the fields required in booking form.
+1. Talent Dashboard – Booking Inquiries Page
+   URL Example: /dashboard/talent/bookings
 
-b. Data Flow
-API Request: Once the customer submits the inquiry form, make an API call to a NestJS endpoint (for example, POST /bookings) that accepts all the information.
+Purpose: Display all incoming booking inquiries where booking.talentId equals the logged-in talent’s ID.
 
-Backend Processing:
+Content and Features:
 
-Create a new record in the EventBooking (or Inquiries) table.
+List View: Each row (or card) shows key details:
 
-Tag the booking with a status (e.g., PENDING by default).
+Customer name (or alias)
 
-Link it to both the talent’s ID and the customer’s ID (if logged in).
+Event date, type, location, and any provided notes
 
-c. Email Notifications
-For Talents: When a new inquiry is submitted, send an email with the booking details and a link to the talent’s dashboard.
+Current booking status (e.g., Pending, Accepted, Declined)
 
-For Customers: After submission, send a confirmation email that the request has been booked; if the talent responds, notify the customer immediately.
+Actions:
 
-d. Talent’s Dashboard & Communication View
-Once a booking/inquiry is submitted:
+Accept/Decline Buttons: For a pending inquiry, talent can click to move the booking status to ACCEPTED or DECLINED.
 
-- Talent Dashboard
-  Booking Requests List: A page where talents can see incoming inquiries, their details, and statuses.
+View Details & Communication: A “View More” button opens a detailed view or modal that shows the full booking details and also initiates a messaging thread if further clarification is needed.
 
-  Action Buttons:
-  Accept / Decline: Allow talents to accept or decline the booking request.
-  Update Booking Status: Once a talent accepts, update the status to ACCEPTED and trigger a notification to the customer.
+Filters/Sorting: Ability to filter by status, event date, or even search by customer name.
 
-- Customer Dashboard
-  Booking Summary Page: A page where a customer can view the inquiries they’ve sent, see the status updates, and track communication.
-  Cancellation: Additional functionalities if the customer wishes to modify or cancel their request.
+B. For Customer Accounts
+
+1. Customer Dashboard – My Bookings Page
+   URL Example: /dashboard/customer/bookings
+
+Purpose: List all bookings that the customer has made as the initiator (where booking.customerId equals the logged-in user’s ID).
+
+Content and Features:
+
+Booking List Display: Each booking shows:
+
+Talent’s name and a mini-profile image
+
+Event summary (date, type, location)
+
+Current status (pending, accepted, etc.)
+
+Actions:
+
+Cancel Booking: If the booking is still pending, the customer may cancel it.
+
+View Details: For further communication or to see more specific event details.
+
+Status Updates: Visual cues (colors or icons) for status; for example, a green checkmark when accepted, a red door for cancellations, etc.
+
+C. For Admin Accounts
+
+1. Admin Dashboard – All Bookings Page
+   URL Example: /dashboard/admin/bookings
+
+Purpose: Allow admins to view and manage every booking/inquiry on the platform.
+
+Content and Features:
+
+Global List View: Display all bookings with columns for:
+
+Talent name, Customer name
+
+Event details (type, date, location)
+
+Status
+
+Filtering/Sorting: Admins can filter by talent, customer, status, and sort by creation date.
+
+Actions/Overrides:
+
+Edit Booking: Admin can modify a booking’s details if needed.
+
+Status Override: If disputes arise, admins can change a booking’s status (for example, force an accepted booking into a cancelled state).
+
+1. Implementation Details Across the Dashboard Pages
+   a. Dynamic Data Fetching
+   Next.js Data Fetching: Use SSR, static props, or client-side fetching (with SWR or React Query) to load booking data depending on the role.
+
+Use segmented API endpoints (e.g., GET /bookings?talentId=<talentID> for talents and GET /bookings?customerId=<userID> for customers).
+
+Backend Endpoints: Build secured NestJS endpoints that return the list of bookings filtered by the current user’s role and IDs.
+
+b. Role-Based UI
+Conditional Rendering: In your dashboard layout component, check user.role and render:
+
+Talent-specific components (booking inquiry list with accept/decline actions)
+
+Customer-specific components (my bookings list with cancel option)
+
+Admin components (global booking list with additional management actions)
+
+Ensure Security: Include backend guards that verify the current user can only access bookings that belong to them (or, in the admin case, everything).
+
+1. Step-by-Step Booking Connection Process
+   Booking Submission:
+
+The customer (or admin) fills out the booking/inquiry form on the talent detail page, and submits it.
+
+The form data is sent to the NestJS API after a check that the talent is not booking themselves.
+
+A new booking record is created (status set to PENDING).
+
+Notifications:
+
+The talent receives a notification and the booking appears in their dashboard.
+
+The customer receives a confirmation, and the booking appears in their “My Bookings” page.
+
+Optionally, the admin is notified if flagged or for global overview.
+
+Review & Response:
+
+The talent reviews the inquiry in their booking dashboard. They can view details, accept, decline, or initiate further discussion via an integrated messaging system.
+
+Once the talent updates the booking status (to ACCEPTED/DECLINED), the customer’s view is updated accordingly.
+
+Post-Booking Actions:
+
+For the Customer: They can see the confirmed booking details, access further communication, and possibly initiate actions like deposit payments or contract signing on an extended booking detail page.
+
+For the Talent: They manage upcoming events, track status changes, and see historical bookings.
+
+For the Admin: They monitor bookings across the platform, make corrections, resolve disputes, and generate reports or analytics.
+
+5. Final Considerations
+   User Interface Design: Invest time in making these dashboards easy to navigate with clear calls-to-action and visual cues for statuses.
+
+Backend Data Validation: Always enforce that a talent cannot book themselves and that users only access their own data (unless admin).
+
+Scalability: Design your API so that additional features (like payment integrations or review systems) can be layered on later.
