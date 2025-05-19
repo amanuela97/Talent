@@ -922,41 +922,39 @@ export class TalentService {
    */
   async findOne(talentId: string) {
     try {
-      const talent = await this.prisma.safeQuery(() =>
-        this.prisma.talent.findUnique({
-          where: { talentId },
-          include: {
-            media: true,
-            user: {
-              select: {
-                name: true,
-                profilePicture: true,
-                email: true,
-                createdAt: true,
-              },
-            },
-            reviews: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                    profilePicture: true,
-                  },
-                },
-                replies: true,
-              },
-              orderBy: {
-                createdAt: 'desc',
-              },
-            },
-            categories: {
-              include: {
-                category: true,
-              },
+      const talent = await this.prisma.talent.findUnique({
+        where: { talentId },
+        include: {
+          media: true,
+          user: {
+            select: {
+              name: true,
+              profilePicture: true,
+              email: true,
+              createdAt: true,
             },
           },
-        }),
-      );
+          reviews: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  profilePicture: true,
+                },
+              },
+              replies: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+          categories: {
+            include: {
+              category: true,
+            },
+          },
+        },
+      });
 
       if (!talent) {
         throw new NotFoundException(`Talent with ID ${talentId} not found`);

@@ -139,22 +139,27 @@ model Reply {
 }
 
 model EventBooking {
-  bookingId  String        @id @default(uuid())
-  talentId   String
-  clientId   String
-  eventType  String
-  eventDate  DateTime
-  duration   Int
-  location   String
-  totalPrice Float
-  comments   String?
-  status     BookingStatus @default(PENDING)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  talent     Talent        @relation(fields: [talentId], references: [talentId])
-  client     User          @relation(fields: [clientId], references: [userId])
-  customer   Customer?     @relation(fields: [customerId], references: [customerId])
-  customerId String?
+  bookingId        String        @id @default(uuid())
+  talentId         String
+  clientId         String
+  eventType        String
+  equipmentNeeded  String?       // What equipment will you need the performer to provide?
+  guestCount       Int?         // How many guests are you expecting at the event?
+  location         String        // Event Location/Address
+  eventDate        DateTime      // Event Date
+  eventTime        String?       // Event Time
+  duration         Int          // Duration in hours
+  budgetRange      String?      // Budget range selected
+  budgetAmount     Float?       // Specific budget amount if provided
+  serviceRequirements String[]   // Specific services needed
+  additionalComments String?    // Notes/Questions
+  status           BookingStatus @default(PENDING)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  talent           Talent        @relation(fields: [talentId], references: [talentId])
+  client           User          @relation(fields: [clientId], references: [userId])
+  customer         Customer?     @relation(fields: [customerId], references: [customerId])
+  customerId       String?
 }
 
 enum BookingStatus {

@@ -1,8 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, X } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, X, Check, ChevronsUpDown } from "lucide-react";
+import languagesData from "../../../../../languages.json";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface DetailsEditorProps {
   services: string[];
@@ -35,19 +49,19 @@ export default function DetailsEditor({
   const [dayAvailable, setDayAvailable] = useState<Record<string, boolean>>({});
   const [languages, setLanguages] = useState(languagesSpoken || []);
   const [links, setLinks] = useState(socialLinks || {});
-  const [newService, setNewService] = useState('');
-  const [newLanguage, setNewLanguage] = useState('');
-  const [newSocialPlatform, setNewSocialPlatform] = useState('');
-  const [newSocialUrl, setNewSocialUrl] = useState('');
+  const [newService, setNewService] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState("");
+  const [newSocialPlatform, setNewSocialPlatform] = useState("");
+  const [newSocialUrl, setNewSocialUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const daysOfWeek = [
-    'monday',
-    'tuesday',
-    'wednesday',
-    'thursday',
-    'friday',
-    'saturday',
-    'sunday',
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
   ];
 
   // Initialize props and day availability state safely if they change
@@ -71,9 +85,9 @@ export default function DetailsEditor({
 
   // Handle services
   const addService = () => {
-    if (newService.trim() !== '') {
+    if (newService.trim() !== "") {
       setServiceList([...serviceList, newService.trim()]);
-      setNewService('');
+      setNewService("");
     }
   };
 
@@ -82,10 +96,10 @@ export default function DetailsEditor({
   };
 
   // Handle languages
-  const addLanguage = () => {
-    if (newLanguage.trim() !== '' && !languages.includes(newLanguage.trim())) {
-      setLanguages([...languages, newLanguage.trim()]);
-      setNewLanguage('');
+  const addLanguage = (language: string) => {
+    if (language && !languages.includes(language)) {
+      setLanguages([...languages, language]);
+      setSelectedLanguage("");
     }
   };
 
@@ -95,13 +109,13 @@ export default function DetailsEditor({
 
   // Handle social links
   const addSocialLink = () => {
-    if (newSocialPlatform.trim() !== '' && newSocialUrl.trim() !== '') {
+    if (newSocialPlatform.trim() !== "" && newSocialUrl.trim() !== "") {
       setLinks({
         ...links,
         [newSocialPlatform.trim()]: newSocialUrl.trim(),
       });
-      setNewSocialPlatform('');
-      setNewSocialUrl('');
+      setNewSocialPlatform("");
+      setNewSocialUrl("");
     }
   };
 
@@ -120,7 +134,7 @@ export default function DetailsEditor({
     if (checked && !availabilityData[day]) {
       setAvailabilityData((prev) => ({
         ...prev,
-        [day]: ['', ''],
+        [day]: ["", ""],
       }));
     }
     // Note: We don't remove the day from availabilityData when unchecked
@@ -130,14 +144,14 @@ export default function DetailsEditor({
   // Handle availability
   const handleAvailabilityChange = (
     day: string,
-    timeType: 'start' | 'end',
+    timeType: "start" | "end",
     value: string
   ) => {
     setAvailabilityData((prev) => {
-      const dayTimes = prev[day] || ['', ''];
+      const dayTimes = prev[day] || ["", ""];
       const newTimes = [...dayTimes];
 
-      if (timeType === 'start') {
+      if (timeType === "start") {
         newTimes[0] = value;
       } else {
         newTimes[1] = value;
@@ -173,7 +187,7 @@ export default function DetailsEditor({
         socialLinks: links,
       });
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error("Error submitting form:", error);
     } finally {
       setSubmitting(false);
     }
@@ -261,7 +275,7 @@ export default function DetailsEditor({
             <div className="space-y-3">
               {daysOfWeek.map((day) => {
                 // Safely access availability data with a default empty array
-                const dayAvailability = availabilityData[day] || ['', ''];
+                const dayAvailability = availabilityData[day] || ["", ""];
                 return (
                   <div
                     key={day}
@@ -288,9 +302,9 @@ export default function DetailsEditor({
                     <div className="col-span-3 flex items-center gap-2">
                       <Input
                         type="time"
-                        value={dayAvailability[0] || ''}
+                        value={dayAvailability[0] || ""}
                         onChange={(e) =>
-                          handleAvailabilityChange(day, 'start', e.target.value)
+                          handleAvailabilityChange(day, "start", e.target.value)
                         }
                         className="cursor-pointer"
                         disabled={!dayAvailable[day]}
@@ -298,9 +312,9 @@ export default function DetailsEditor({
                       <span>to</span>
                       <Input
                         type="time"
-                        value={dayAvailability[1] || ''}
+                        value={dayAvailability[1] || ""}
                         onChange={(e) =>
-                          handleAvailabilityChange(day, 'end', e.target.value)
+                          handleAvailabilityChange(day, "end", e.target.value)
                         }
                         className="cursor-pointer"
                         disabled={!dayAvailable[day]}
@@ -319,19 +333,52 @@ export default function DetailsEditor({
 
             <div className="space-y-2">
               <div className="flex gap-2">
-                <Input
-                  placeholder="Add a language..."
-                  value={newLanguage}
-                  onChange={(e) => setNewLanguage(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  onClick={addLanguage}
-                  className="shrink-0"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    >
+                      {selectedLanguage
+                        ? languagesData.languages.find(
+                            (language) => language === selectedLanguage
+                          )
+                        : "Select a language..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search language..." />
+                      <CommandEmpty>No language found.</CommandEmpty>
+                      <CommandGroup className="max-h-[300px] overflow-auto">
+                        {languagesData.languages.map((language) => (
+                          <CommandItem
+                            key={language}
+                            value={language}
+                            onSelect={() => {
+                              if (!languages.includes(language)) {
+                                addLanguage(language);
+                              }
+                            }}
+                            disabled={languages.includes(language)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                languages.includes(language)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {language}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="flex flex-wrap gap-2 mt-3">
@@ -407,7 +454,7 @@ export default function DetailsEditor({
 
           <div className="flex justify-end pt-6">
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving...' : 'Save Changes'}
+              {submitting ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </form>

@@ -69,7 +69,6 @@ export class BookingsController {
   ) {
     try {
       return await this.bookingsService.createBooking(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         createBookingDto,
         req.user.userId,
       );

@@ -9,7 +9,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { Role, Prisma, BookingStatus } from '@prisma/client';
+import { UpdateBookingDto } from './dto/update-booking.dto';
+import { Role, Prisma, BookingStatus, EventBooking } from '@prisma/client';
 import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
@@ -69,11 +70,15 @@ export class BookingsService {
           talentId: createBookingDto.talentId,
           eventDate: startDate,
           eventType: createBookingDto.eventType,
+          equipmentNeeded: createBookingDto.equipmentNeeded,
           duration: createBookingDto.duration,
           location: createBookingDto.location,
-          comments: createBookingDto.comments,
-          totalPrice: (talent.hourlyRate ?? 0) * createBookingDto.duration,
-          status: 'PENDING',
+          guestCount: createBookingDto.guestCount,
+          serviceRequirements: createBookingDto.serviceRequirements,
+          additionalComments: createBookingDto.additionalComments,
+          budgetAmount: createBookingDto.budgetAmount,
+          budgetRange: createBookingDto.budgetRange,
+          status: createBookingDto.status,
         },
         include: {
           client: {
@@ -111,22 +116,19 @@ export class BookingsService {
       if (!talent.email) {
         throw new BadRequestException('Talent email is missing');
       }
-      await this.mailService.sendBookingRequestToTalent(
-        talent.email as string,
-        {
-          talentName: `${talent.firstName} ${talent.lastName}`,
-          clientName: user.name,
-          eventType: createBookingDto.eventType,
-          eventDate: startDate.toLocaleDateString(),
-          eventTime: startDate.toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-          duration: createBookingDto.duration,
-          location: createBookingDto.location,
-          totalPrice: (talent.hourlyRate ?? 0) * createBookingDto.duration,
-        },
-      );
+      await this.mailService.sendBookingRequestToTalent(talent.email, {
+        talentName: `${talent.firstName} ${talent.lastName}`,
+        clientName: user.name,
+        eventType: createBookingDto.eventType,
+        eventDate: startDate.toLocaleDateString(),
+        eventTime: startDate.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        duration: createBookingDto.duration,
+        location: createBookingDto.location,
+        totalPrice: (talent.hourlyRate ?? 0) * createBookingDto.duration,
+      });
 
       // Send confirmation email to client
       await this.mailService.sendBookingConfirmationToClient(user.email, {
@@ -169,7 +171,7 @@ export class BookingsService {
 
     if (
       typeof status !== 'string' ||
-      !Object.values(BookingStatus).includes(status as BookingStatus)
+      !Object.values(BookingStatus).includes(status)
     ) {
       throw new BadRequestException('Invalid booking status');
     }
@@ -294,7 +296,7 @@ export class BookingsService {
 
     if (
       typeof status !== 'string' ||
-      !Object.values(BookingStatus).includes(status as BookingStatus)
+      !Object.values(BookingStatus).includes(status)
     ) {
       throw new BadRequestException('Invalid booking status');
     }
@@ -404,7 +406,7 @@ export class BookingsService {
 
     if (
       typeof status !== 'string' ||
-      !Object.values(BookingStatus).includes(status as BookingStatus)
+      !Object.values(BookingStatus).includes(status)
     ) {
       throw new BadRequestException('Invalid booking status');
     }
@@ -437,5 +439,196 @@ export class BookingsService {
     });
 
     return bookings;
+  }
+
+  async create(
+    createBookingDto: CreateBookingDto,
+    clientId: string,
+  ): Promise<EventBooking> {
+    try {
+      // Check if talent exists
+      const talent = await this.prisma.talent.findUnique({
+        where: { talentId: createBookingDto.talentId },
+      });
+
+      if (!talent) {
+        throw new NotFoundException(
+          `Talent with ID ${createBookingDto.talentId} not found`,
+        );
+      }
+
+      // Check if client exists
+      const client = await this.prisma.user.findUnique({
+        where: { userId: clientId },
+      });
+
+      if (!client) {
+        throw new NotFoundException(`Client with ID ${clientId} not found`);
+      }
+
+      // Create the booking
+      return await this.prisma.eventBooking.create({
+        data: {
+          clientId: clientId,
+          ...createBookingDto,
+          status: BookingStatus.PENDING,
+        },
+        include: {
+          talent: true,
+          client: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to create booking');
+    }
+  }
+
+  async findAll(params: {
+    skip?: number;
+    take?: number;
+    talentId?: string;
+    clientId?: string;
+    status?: BookingStatus;
+  }): Promise<{ bookings: EventBooking[]; total: number }> {
+    const { skip = 0, take = 10, talentId, clientId, status } = params;
+
+    const where = {
+      ...(talentId && { talentId }),
+      ...(clientId && { clientId }),
+      ...(status && { status }),
+    };
+
+    const [bookings, total] = await Promise.all([
+      this.prisma.eventBooking.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          talent: true,
+          client: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.eventBooking.count({ where }),
+    ]);
+
+    return { bookings, total };
+  }
+
+  async findOne(id: string): Promise<EventBooking> {
+    const booking = await this.prisma.eventBooking.findUnique({
+      where: { bookingId: id },
+      include: {
+        talent: true,
+        client: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking with ID ${id} not found`);
+    }
+
+    return booking;
+  }
+
+  async update(
+    id: string,
+    updateBookingDto: UpdateBookingDto,
+  ): Promise<EventBooking> {
+    try {
+      // Check if booking exists
+      const booking = await this.prisma.eventBooking.findUnique({
+        where: { bookingId: id },
+      });
+
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      // Update the booking
+      return await this.prisma.eventBooking.update({
+        where: { bookingId: id },
+        data: updateBookingDto,
+        include: {
+          talent: true,
+          client: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to update booking');
+    }
+  }
+
+  async updateStatus(id: string, status: BookingStatus): Promise<EventBooking> {
+    try {
+      const booking = await this.prisma.eventBooking.findUnique({
+        where: { bookingId: id },
+      });
+
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      return await this.prisma.eventBooking.update({
+        where: { bookingId: id },
+        data: { status },
+        include: {
+          talent: true,
+          client: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to update booking status');
+    }
+  }
+
+  async remove(id: string): Promise<EventBooking> {
+    try {
+      const booking = await this.prisma.eventBooking.findUnique({
+        where: { bookingId: id },
+      });
+
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${id} not found`);
+      }
+
+      return await this.prisma.eventBooking.delete({
+        where: { bookingId: id },
+        include: {
+          talent: true,
+          client: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to delete booking');
+    }
+  }
+
+  async getClientBookings(
+    clientId: string,
+    params: {
+      skip?: number;
+      take?: number;
+      status?: BookingStatus;
+    },
+  ): Promise<{ bookings: EventBooking[]; total: number }> {
+    return this.findAll({
+      ...params,
+      clientId,
+    });
   }
 }

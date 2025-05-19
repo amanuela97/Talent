@@ -8,12 +8,13 @@ import {
   ChevronDown,
   MapPin,
   DollarSign,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Sheet,
   SheetContent,
@@ -35,20 +36,11 @@ import { TalentCard } from "@/components/custom/talents/talent-card";
 import axiosInstance from "@/app/utils/axios";
 import { toast } from "sonner";
 import type { Category, Talent } from "@/types/prismaTypes";
+import languagesData from "../../../../languages.json";
+import { cn } from "@/lib/utils";
 
-// Common languages
-const languages = [
-  "English",
-  "Spanish",
-  "French",
-  "German",
-  "Chinese",
-  "Japanese",
-  "Arabic",
-  "Russian",
-  "Portuguese",
-  "Hindi",
-];
+// Replace the languages array with languagesData
+const languages: string[] = languagesData.languages;
 
 export default function TalentsPage() {
   const searchParams = useSearchParams();
@@ -566,22 +558,64 @@ export default function TalentsPage() {
                   {/* Languages filter */}
                   <div className="space-y-2">
                     <Label>Languages</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {languages.map((language) => (
-                        <div key={language} className="flex items-center">
-                          <Checkbox
-                            id={`lang-${language}`}
-                            checked={pendingLanguages.includes(language)}
-                            onCheckedChange={() => toggleLanguage(language)}
-                          />
-                          <label
-                            htmlFor={`lang-${language}`}
-                            className="ml-2 text-sm font-medium cursor-pointer"
+                    <div className="space-y-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between"
+                          >
+                            Select languages...
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          className="w-full p-0"
+                          align="start"
+                        >
+                          <div className="max-h-[300px] overflow-auto">
+                            {languages.map((language) => (
+                              <DropdownMenuItem
+                                key={language}
+                                onClick={() => {
+                                  toggleLanguage(language);
+                                }}
+                                className="flex items-center"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    pendingLanguages.includes(language)
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {language}
+                              </DropdownMenuItem>
+                            ))}
+                          </div>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {pendingLanguages.map((language) => (
+                          <Badge
+                            key={language}
+                            variant="secondary"
+                            className="flex items-center gap-1"
                           >
                             {language}
-                          </label>
-                        </div>
-                      ))}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                toggleLanguage(language);
+                              }}
+                            />
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -704,7 +738,10 @@ export default function TalentsPage() {
                 Language: {language}
                 <X
                   className="h-3 w-3 cursor-pointer"
-                  onClick={() => toggleLanguage(language)}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    toggleLanguage(language);
+                  }}
                 />
               </Badge>
             ))}
