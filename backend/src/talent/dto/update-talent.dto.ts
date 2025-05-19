@@ -97,12 +97,7 @@ export class UpdateTalentDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  generalCategories?: string[];
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  specificCategories?: string[];
+  categories?: string[];
 
   @IsOptional()
   @IsArray()

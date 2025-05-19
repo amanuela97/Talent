@@ -257,42 +257,31 @@ export class TalentService {
   /**
    * Assign categories to a talent
    * @param talentId Talent ID
-   * @param generalCategoryIds Array of general category IDs to assign
-   * @param specificCategoryIds Array of specific category IDs to assign
+   * @param categoryIds Array of category IDs to assign
    * @returns Array of created TalentCategory relationships
    */
   private async assignCategoriesToTalent(
     talentId: string,
-    generalCategoryIds: string[],
-    specificCategoryIds: string[],
+    categoryIds: string[],
   ) {
     // First, get all existing categories
     const existingCategories = await this.prisma.category.findMany({
       where: {
-        id: { in: [...generalCategoryIds, ...specificCategoryIds] },
+        id: { in: categoryIds },
       },
     });
 
     const existingIds = existingCategories.map(cat => cat.id);
-    const missingGeneralIds = generalCategoryIds.filter(id => !existingIds.includes(id));
-    const missingSpecificIds = specificCategoryIds.filter(id => !existingIds.includes(id));
+    const missingIds = categoryIds.filter(id => !existingIds.includes(id));
 
-    // Create missing categories
-    if (missingGeneralIds.length > 0 || missingSpecificIds.length > 0) {
-      const categoriesToCreate = [
-        ...missingGeneralIds.map(id => ({
-          id,
-          name: `General Category ${id}`, // Using ID as part of name since we don't have the actual name
-          type: 'GENERAL' as const,
-          status: 'PENDING' as const,
-        })),
-        ...missingSpecificIds.map(id => ({
-          id,
-          name: `Specific Category ${id}`, // Using ID as part of name since we don't have the actual name
-          type: 'SPECIFIC' as const,
-          status: 'PENDING' as const,
-        })),
-      ];
+    // Create missing categories with PENDING status
+    if (missingIds.length > 0) {
+      const categoriesToCreate = missingIds.map(id => ({
+        id,
+        name: `Category ${id}`, // Using ID as part of name since we don't have the actual name
+        type: 'GENERAL' as const, // Default to GENERAL type
+        status: 'PENDING' as const,
+      }));
 
       await this.prisma.category.createMany({
         data: categoriesToCreate,
@@ -303,14 +292,17 @@ export class TalentService {
     // Now get all categories (including newly created ones)
     const allCategories = await this.prisma.category.findMany({
       where: {
-        id: { in: [...generalCategoryIds, ...specificCategoryIds] },
+        id: { in: categoryIds },
       },
     });
 
-    // Create the talent-category relationships
+    // Filter to only include ACTIVE categories for relationship creation
+    const activeCategories = allCategories.filter(category => category.status === 'ACTIVE');
+
+    // Create the talent-category relationships only for ACTIVE categories
     const talentCategories = await this.prisma.safeQuery(() =>
       Promise.all(
-        allCategories.map((category) =>
+        activeCategories.map((category) =>
           this.prisma.talentCategory.create({
             data: {
               talentId,
@@ -443,7 +435,6 @@ export class TalentService {
       await this.assignCategoriesToTalent(
         talent.talentId,
         createTalentDto.generalCategories || [],
-        createTalentDto.specificCategories || [],
       );
     }
 
@@ -497,9 +488,11 @@ export class TalentService {
     } | null,
   ) {
     // Check if talent exists
-    const talent = await this.prisma.talent.findUnique({
-      where: { talentId: id },
-    });
+    const talent = await this.prisma.safeQuery(() =>
+      this.prisma.talent.findUnique({
+        where: { talentId: id },
+      })
+    );
 
     if (!talent) {
       throw new NotFoundException(`Talent with ID ${id} not found`);
@@ -523,16 +516,15 @@ export class TalentService {
     }
 
     // Update talent profile
-    await this.prisma.talent.update({
-      where: { talentId: id },
-      data: updateData,
-    });
+    await this.prisma.safeQuery(() =>
+      this.prisma.talent.update({
+        where: { talentId: id },
+        data: updateData,
+      })
+    );
 
     // Handle categories if provided
-    if (
-      (updateTalentDto.generalCategories && updateTalentDto.generalCategories.length > 0) ||
-      (updateTalentDto.specificCategories && updateTalentDto.specificCategories.length > 0)
-    ) {
+    if (updateTalentDto.categories && updateTalentDto.categories.length > 0) {
       // First remove all existing categories if we're replacing them
       if (!updateTalentDto.removedCategories) {
         const existingCategories = await this.getTalentCategories(id);
@@ -545,8 +537,7 @@ export class TalentService {
       // Then add the new categories
       await this.assignCategoriesToTalent(
         id,
-        updateTalentDto.generalCategories || [],
-        updateTalentDto.specificCategories || [],
+        updateTalentDto.categories,
       );
     }
 
