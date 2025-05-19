@@ -5,6 +5,7 @@ import {
   IsObject,
   IsOptional,
   IsBoolean,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TalentStatus } from '@prisma/client';
@@ -17,19 +18,10 @@ export class UpdateTalentDto {
   @IsOptional()
   @IsString()
   lastName?: string;
+
   @IsOptional()
   @IsString()
   email?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  categories?: string[]; // Array of category IDs to associate with talent
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  removedCategories?: string[]; // Category IDs to remove from talent
 
   @IsOptional()
   @IsString()
@@ -43,8 +35,13 @@ export class UpdateTalentDto {
   @IsString()
   phoneNumber?: string;
 
+
   @IsOptional()
   @IsString()
+  bio?: string;
+
+  @IsOptional()
+  @IsEnum(TalentStatus)
   status?: TalentStatus;
 
   @IsOptional()
@@ -52,6 +49,7 @@ export class UpdateTalentDto {
   rejectionReason?: string;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   isEmailVerified?: boolean;
 
@@ -60,10 +58,12 @@ export class UpdateTalentDto {
   verificationToken?: string;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   isOnline?: boolean;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   isPublic?: boolean;
 
@@ -71,10 +71,6 @@ export class UpdateTalentDto {
   @IsArray()
   @IsString({ each: true })
   languagesSpoken?: string[];
-
-  @IsOptional()
-  @IsString()
-  bio?: string;
 
   @IsOptional()
   @IsArray()
@@ -88,7 +84,7 @@ export class UpdateTalentDto {
 
   @IsOptional()
   @IsString()
-  city?: string; // Add this for direct city access
+  city?: string;
 
   @IsOptional()
   @IsObject()
@@ -101,5 +97,15 @@ export class UpdateTalentDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  mediasToRemove?: string[];
+  generalCategories?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  specificCategories?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  removedCategories?: string[];
 }

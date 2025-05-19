@@ -35,7 +35,7 @@ async function bootstrap() {
 
     app.useGlobalFilters(new AllExceptionsFilter());
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
     );
     app.enableCors({
       origin: 'http://localhost:3000',

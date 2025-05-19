@@ -78,15 +78,15 @@ export class TalentService {
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailService: MailService, // Inject MailService
-  ) {}
+  ) { }
   /**
    * Helper method to update talent profile data from DTO
    * @param updateTalentDto DTO with talent update data
    * @returns Prisma-compatible update data object
    */
-  private buildTalentUpdateData(
+  private async buildTalentUpdateData(
     updateTalentDto: UpdateTalentDto,
-  ): Prisma.TalentUpdateInput {
+  ): Promise<Prisma.TalentUpdateInput> {
     const updateData: Prisma.TalentUpdateInput = {}; // Map all fields that can be directly assigned
     const directFields = [
       'firstName',
@@ -121,9 +121,6 @@ export class TalentService {
     ) {
       updateData.status = updateTalentDto.status;
     }
-
-    // Note: categories and removedCategories are handled separately in updateWithMedia
-    // They require special handling with assignCategoriesToTalent and removeCategoriesFromTalent
 
     return updateData;
   }
@@ -260,37 +257,64 @@ export class TalentService {
   /**
    * Assign categories to a talent
    * @param talentId Talent ID
-   * @param categoryIds Array of category IDs to assign
+   * @param generalCategoryIds Array of general category IDs to assign
+   * @param specificCategoryIds Array of specific category IDs to assign
    * @returns Array of created TalentCategory relationships
    */
   private async assignCategoriesToTalent(
     talentId: string,
-    categoryIds: string[],
+    generalCategoryIds: string[],
+    specificCategoryIds: string[],
   ) {
-    // Validate the categories exist
-    const categories = await this.prisma.category.findMany({
+    // First, get all existing categories
+    const existingCategories = await this.prisma.category.findMany({
       where: {
-        id: { in: categoryIds },
-        status: 'ACTIVE',
+        id: { in: [...generalCategoryIds, ...specificCategoryIds] },
       },
     });
 
-    if (categories.length !== categoryIds.length) {
-      const foundIds = categories.map((cat) => cat.id);
-      const missingIds = categoryIds.filter((id) => !foundIds.includes(id));
-      throw new BadRequestException(
-        `Categories not found or not active: ${missingIds.join(', ')}`,
-      );
+    const existingIds = existingCategories.map(cat => cat.id);
+    const missingGeneralIds = generalCategoryIds.filter(id => !existingIds.includes(id));
+    const missingSpecificIds = specificCategoryIds.filter(id => !existingIds.includes(id));
+
+    // Create missing categories
+    if (missingGeneralIds.length > 0 || missingSpecificIds.length > 0) {
+      const categoriesToCreate = [
+        ...missingGeneralIds.map(id => ({
+          id,
+          name: `General Category ${id}`, // Using ID as part of name since we don't have the actual name
+          type: 'GENERAL' as const,
+          status: 'PENDING' as const,
+        })),
+        ...missingSpecificIds.map(id => ({
+          id,
+          name: `Specific Category ${id}`, // Using ID as part of name since we don't have the actual name
+          type: 'SPECIFIC' as const,
+          status: 'PENDING' as const,
+        })),
+      ];
+
+      await this.prisma.category.createMany({
+        data: categoriesToCreate,
+        skipDuplicates: true,
+      });
     }
+
+    // Now get all categories (including newly created ones)
+    const allCategories = await this.prisma.category.findMany({
+      where: {
+        id: { in: [...generalCategoryIds, ...specificCategoryIds] },
+      },
+    });
 
     // Create the talent-category relationships
     const talentCategories = await this.prisma.safeQuery(() =>
       Promise.all(
-        categoryIds.map((categoryId) =>
+        allCategories.map((category) =>
           this.prisma.talentCategory.create({
             data: {
               talentId,
-              categoryId,
+              categoryId: category.id,
             },
           }),
         ),
@@ -382,14 +406,16 @@ export class TalentService {
         console.error('Error uploading profile picture:', error);
         throw new BadRequestException('Failed to upload profile picture');
       }
-    } // Create talent profile with the profile picture URL
+    }
+
+    // Create talent profile with the profile picture URL
     const talent = await this.prisma.talent.create({
       data: {
         talentId: userId,
         firstName: createTalentDto.firstName,
         lastName: createTalentDto.lastName,
         email: createTalentDto.email,
-        talentProfilePicture: profilePictureUrl, // Set the profile picture URL
+        talentProfilePicture: profilePictureUrl,
         serviceName: createTalentDto.serviceName,
         address: createTalentDto.address,
         phoneNumber: createTalentDto.phoneNumber,
@@ -410,10 +436,14 @@ export class TalentService {
     });
 
     // Add categories if provided
-    if (createTalentDto.categories && createTalentDto.categories.length > 0) {
+    if (
+      (createTalentDto.generalCategories && createTalentDto.generalCategories.length > 0) ||
+      (createTalentDto.specificCategories && createTalentDto.specificCategories.length > 0)
+    ) {
       await this.assignCategoriesToTalent(
         talent.talentId,
-        createTalentDto.categories,
+        createTalentDto.generalCategories || [],
+        createTalentDto.specificCategories || [],
       );
     }
 
@@ -476,7 +506,7 @@ export class TalentService {
     }
 
     // Update talent profile
-    const updateData = this.buildTalentUpdateData(updateTalentDto);
+    const updateData = await this.buildTalentUpdateData(updateTalentDto);
 
     // Upload new profile picture if provided
     if (files?.profilePicture) {
@@ -492,14 +522,6 @@ export class TalentService {
       }
     }
 
-    // Remove media if specified
-    if (
-      updateTalentDto.mediasToRemove &&
-      updateTalentDto.mediasToRemove.length > 0
-    ) {
-      await this.removeMultipleMedia(updateTalentDto.mediasToRemove);
-    }
-
     // Update talent profile
     await this.prisma.talent.update({
       where: { talentId: id },
@@ -507,7 +529,10 @@ export class TalentService {
     });
 
     // Handle categories if provided
-    if (updateTalentDto.categories && updateTalentDto.categories.length > 0) {
+    if (
+      (updateTalentDto.generalCategories && updateTalentDto.generalCategories.length > 0) ||
+      (updateTalentDto.specificCategories && updateTalentDto.specificCategories.length > 0)
+    ) {
       // First remove all existing categories if we're replacing them
       if (!updateTalentDto.removedCategories) {
         const existingCategories = await this.getTalentCategories(id);
@@ -518,7 +543,11 @@ export class TalentService {
       }
 
       // Then add the new categories
-      await this.assignCategoriesToTalent(id, updateTalentDto.categories);
+      await this.assignCategoriesToTalent(
+        id,
+        updateTalentDto.generalCategories || [],
+        updateTalentDto.specificCategories || [],
+      );
     }
 
     // Handle removed categories if specified
@@ -1041,10 +1070,10 @@ export class TalentService {
     }
 
     // Update talent profile
-    return this.prisma.safeQuery(() =>
+    return this.prisma.safeQuery(async () =>
       this.prisma.talent.update({
         where: { talentId },
-        data: this.buildTalentUpdateData(updateTalentDto),
+        data: await this.buildTalentUpdateData(updateTalentDto),
         include: {
           media: true,
         },
@@ -1421,7 +1450,7 @@ export class TalentService {
           user.email,
           user.name,
           rejectionReason ||
-            'Your application did not meet our current requirements.',
+          'Your application did not meet our current requirements.',
         );
       }
     }

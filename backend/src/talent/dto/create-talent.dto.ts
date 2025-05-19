@@ -1,25 +1,87 @@
 import { TalentStatus } from '@prisma/client';
+import { IsString, IsArray, IsNumber, IsObject, IsOptional, IsBoolean, IsEnum, } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateTalentDto {
+  @IsString()
   firstName: string;
+
+  @IsString()
   lastName: string;
-  email: string; // Added email field
-  categories?: string[]; // Array of category IDs replacing generalCategory and specificCategory
+
+  @IsString()
+  email: string;
+
+  @IsString()
   serviceName: string;
+
+  @IsString()
   address: string;
+
+  @IsString()
   phoneNumber: string;
-  talentProfilePicture?: string; // URL will be stored after upload
+
+  @IsOptional()
+  @IsString()
+  bio?: string;
+
+  @IsOptional()
+  @IsEnum(TalentStatus)
   status?: TalentStatus;
+
+  @IsOptional()
+  @IsString()
+  rejectionReason?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
   isEmailVerified?: boolean;
-  verificationToken?: string;
-  languagesSpoken?: string[]; // Made optional
-  bio?: string; // Made optional
-  services?: string[]; // Made optional
-  hourlyRate?: number; // Made optional
+
+  @IsString()
+  verificationToken: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  services?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  hourlyRate?: number;
+
+  @IsOptional()
+  @IsString()
   city?: string;
-  availability?: Record<string, any>; // Made optional
+
+  @IsOptional()
+  @IsObject()
+  availability?: Record<string, any>;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
   isOnline?: boolean;
-  isPublic?: boolean; // Added for public/private profile control
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isPublic?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  languagesSpoken?: string[];
+
+  @IsOptional()
+  @IsObject()
   socialLinks?: Record<string, any>;
-  mediasToRemove?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  generalCategories: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  specificCategories: string[];
 }

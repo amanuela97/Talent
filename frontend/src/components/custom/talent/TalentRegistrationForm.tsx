@@ -125,17 +125,24 @@ export default function TalentRegistrationForm({
 
       // Create form data for multipart/form-data
       const formData = new FormData();
+
+      // Add individual fields as expected by the backend
       formData.append("firstName", data.firstName);
       formData.append("lastName", data.lastName);
       formData.append("email", data.email);
 
-      // Extract categories for submission
+      // Handle categories
       if (data.categories && data.categories.length > 0) {
-        // Convert categories array to JSON string for backend processing
-        formData.append(
-          "categories",
-          JSON.stringify(data.categories.map((cat) => cat.id))
-        );
+        // The backend expects generalCategories and specificCategories as arrays
+        const generalCategory = data.categories[0]?.id;
+        const specificCategory = data.categories[1]?.id;
+
+        if (generalCategory) {
+          formData.append("generalCategories[]", generalCategory);
+        }
+        if (specificCategory) {
+          formData.append("specificCategories[]", specificCategory);
+        }
       }
 
       formData.append("serviceName", data.serviceName);
@@ -143,14 +150,12 @@ export default function TalentRegistrationForm({
       formData.append("phoneNumber", data.phoneNumber);
       formData.append("verificationToken", verificationToken);
       formData.append("isEmailVerified", "true");
+      formData.append("status", "PENDING");
 
       // Add profile picture to form data
       if (data.profilePicture) {
         formData.append("profilePicture", data.profilePicture);
       }
-
-      // Status field (optional, but we want to be explicit)
-      formData.append("status", "PENDING");
 
       if (isRejected && existingTalentId) {
         // Update existing talent profile for rejected talents
@@ -283,8 +288,8 @@ export default function TalentRegistrationForm({
                 {isSubmitting
                   ? "Submitting..."
                   : isRejected
-                  ? "Resubmit"
-                  : "Submit"}
+                    ? "Resubmit"
+                    : "Submit"}
               </Button>
             )}
           </div>

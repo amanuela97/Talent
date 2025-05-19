@@ -48,7 +48,7 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 @ApiTags('Talents')
 @Controller('talents')
 export class TalentController {
-  constructor(private readonly talentService: TalentService) {}
+  constructor(private readonly talentService: TalentService) { }
 
   @Post('profile/:userId')
   @UseGuards(JwtGuard)
@@ -82,8 +82,16 @@ export class TalentController {
         firstName: { type: 'string' },
         lastName: { type: 'string' },
         email: { type: 'string' },
-        generalCategory: { type: 'string' },
-        specificCategory: { type: 'string' },
+        generalCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of general category IDs',
+        },
+        specificCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of specific category IDs',
+        },
         serviceName: { type: 'string' },
         address: { type: 'string' },
         phoneNumber: { type: 'string' },
@@ -138,8 +146,8 @@ export class TalentController {
         'firstName',
         'lastName',
         'email',
-        'generalCategory',
-        'specificCategory',
+        'generalCategories',
+        'specificCategories',
         'serviceName',
         'address',
         'phoneNumber',
@@ -163,65 +171,45 @@ export class TalentController {
     if (!files.profilePicture || files.profilePicture.length === 0) {
       throw new BadRequestException('Profile picture is required');
     }
+
+    // Validate that categories are provided
+    if (!createTalentDto.generalCategories || createTalentDto.generalCategories.length === 0) {
+      throw new BadRequestException('At least one general category is required');
+    }
+
+    if (!createTalentDto.specificCategories || createTalentDto.specificCategories.length === 0) {
+      throw new BadRequestException('At least one specific category is required');
+    }
+
     const talentData: CreateTalentDto = {
       firstName: createTalentDto.firstName,
       lastName: createTalentDto.lastName,
       email: createTalentDto.email,
+      generalCategories: createTalentDto.generalCategories,
+      specificCategories: createTalentDto.specificCategories,
       serviceName: createTalentDto.serviceName,
       address: createTalentDto.address,
       phoneNumber: createTalentDto.phoneNumber,
       status:
         createTalentDto.status &&
-        Object.values(TalentStatus).includes(createTalentDto.status)
+          Object.values(TalentStatus).includes(createTalentDto.status)
           ? createTalentDto.status
-          : undefined, // Let Prisma use default
+          : undefined,
       isEmailVerified: isBoolean(createTalentDto.isEmailVerified)
         ? createTalentDto.isEmailVerified
-        : undefined, // Let Prisma use default
+        : undefined,
       verificationToken:
         createTalentDto.verificationToken || crypto.randomUUID(),
+      isPublic: createTalentDto.isPublic,
+      languagesSpoken: createTalentDto.languagesSpoken,
+      bio: createTalentDto.bio,
+      services: createTalentDto.services,
+      hourlyRate: createTalentDto.hourlyRate,
+      city: createTalentDto.city,
+      availability: createTalentDto.availability,
+      socialLinks: createTalentDto.socialLinks,
+      isOnline: createTalentDto.isOnline,
     };
-
-    // Handle optional fields
-    if (createTalentDto.languagesSpoken) {
-      talentData.languagesSpoken = Array.isArray(
-        createTalentDto.languagesSpoken,
-      )
-        ? createTalentDto.languagesSpoken
-        : JSON.parse(createTalentDto.languagesSpoken || '[]');
-    }
-
-    if (createTalentDto.bio) {
-      talentData.bio = createTalentDto.bio;
-    }
-
-    if (createTalentDto.services) {
-      talentData.services = Array.isArray(createTalentDto.services)
-        ? createTalentDto.services
-        : JSON.parse(createTalentDto.services || '[]');
-    }
-
-    if (createTalentDto.hourlyRate) {
-      talentData.hourlyRate = parseFloat(createTalentDto.hourlyRate.toString());
-    }
-
-    if (createTalentDto.city) {
-      talentData.city = createTalentDto.city;
-    }
-
-    if (createTalentDto.availability) {
-      talentData.availability =
-        typeof createTalentDto.availability === 'object'
-          ? createTalentDto.availability
-          : JSON.parse(createTalentDto.availability || '{}');
-    }
-
-    if (createTalentDto.socialLinks) {
-      talentData.socialLinks =
-        typeof createTalentDto.socialLinks === 'object'
-          ? createTalentDto.socialLinks
-          : JSON.parse(createTalentDto.socialLinks || '{}');
-    }
 
     const mediaFiles = {
       profilePicture: files.profilePicture[0],
@@ -392,8 +380,21 @@ export class TalentController {
       properties: {
         firstName: { type: 'string' },
         lastName: { type: 'string' },
-        generalCategory: { type: 'string' },
-        specificCategory: { type: 'string' },
+        generalCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of general category IDs to assign',
+        },
+        specificCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of specific category IDs to assign',
+        },
+        removedCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of category IDs to remove',
+        },
         serviceName: { type: 'string' },
         address: { type: 'string' },
         phoneNumber: { type: 'string' },
@@ -418,10 +419,6 @@ export class TalentController {
         city: { type: 'string' },
         availability: { type: 'object' },
         socialLinks: { type: 'object' },
-        mediasToRemove: {
-          type: 'array',
-          items: { type: 'string' },
-        },
         profilePicture: {
           type: 'string',
           format: 'binary',
@@ -461,101 +458,29 @@ export class TalentController {
       audios?: Express.Multer.File[];
     },
   ) {
-    const talentData: UpdateTalentDto = {};
-
-    if (updateTalentDto.firstName !== undefined)
-      talentData.firstName = updateTalentDto.firstName;
-    if (updateTalentDto.lastName !== undefined)
-      talentData.lastName = updateTalentDto.lastName;
-
-    if (updateTalentDto.email !== undefined)
-      talentData.email = updateTalentDto.email;
-
-    if (updateTalentDto.serviceName !== undefined)
-      talentData.serviceName = updateTalentDto.serviceName;
-
-    if (updateTalentDto.address !== undefined)
-      talentData.address = updateTalentDto.address;
-
-    if (updateTalentDto.phoneNumber !== undefined)
-      talentData.phoneNumber = updateTalentDto.phoneNumber;
-
-    if (updateTalentDto.status !== undefined)
-      talentData.status = updateTalentDto.status;
-
-    if (updateTalentDto.isEmailVerified !== undefined)
-      talentData.isEmailVerified = isString(updateTalentDto.isEmailVerified)
-        ? Boolean(updateTalentDto.isEmailVerified)
-        : updateTalentDto.isEmailVerified;
-
-    if (updateTalentDto.verificationToken !== undefined)
-      talentData.verificationToken = updateTalentDto.verificationToken;
-
-    if (updateTalentDto.isOnline !== undefined)
-      talentData.isOnline = updateTalentDto.isOnline;
-
-    if (updateTalentDto.isPublic !== undefined)
-      talentData.isPublic = updateTalentDto.isPublic;
-
-    // Handle categories if provided
-    if (updateTalentDto.categories !== undefined) {
-      talentData.categories = Array.isArray(updateTalentDto.categories)
-        ? updateTalentDto.categories
-        : JSON.parse(updateTalentDto.categories as unknown as string);
-    }
-
-    // Handle removed categories if provided
-    if (updateTalentDto.removedCategories !== undefined) {
-      talentData.removedCategories = Array.isArray(
-        updateTalentDto.removedCategories,
-      )
-        ? updateTalentDto.removedCategories
-        : JSON.parse(updateTalentDto.removedCategories as unknown as string);
-    }
-
-    if (updateTalentDto.languagesSpoken !== undefined) {
-      talentData.languagesSpoken = Array.isArray(
-        updateTalentDto.languagesSpoken,
-      )
-        ? updateTalentDto.languagesSpoken
-        : JSON.parse(updateTalentDto.languagesSpoken);
-    }
-
-    if (updateTalentDto.bio !== undefined) talentData.bio = updateTalentDto.bio;
-
-    if (updateTalentDto.services) {
-      talentData.services = Array.isArray(updateTalentDto.services)
-        ? updateTalentDto.services
-        : JSON.parse(updateTalentDto.services);
-    }
-
-    if (updateTalentDto.mediasToRemove) {
-      talentData.mediasToRemove = Array.isArray(updateTalentDto.mediasToRemove)
-        ? updateTalentDto.mediasToRemove
-        : JSON.parse(updateTalentDto.mediasToRemove);
-    }
-
-    if (updateTalentDto.hourlyRate) {
-      talentData.hourlyRate = parseFloat(updateTalentDto.hourlyRate.toString());
-    }
-
-    if (updateTalentDto.city) {
-      talentData.city = updateTalentDto.city;
-    }
-
-    if (updateTalentDto.availability) {
-      talentData.availability =
-        typeof updateTalentDto.availability === 'object'
-          ? updateTalentDto.availability
-          : JSON.parse(updateTalentDto.availability);
-    }
-
-    if (updateTalentDto.socialLinks) {
-      talentData.socialLinks =
-        typeof updateTalentDto.socialLinks === 'object'
-          ? updateTalentDto.socialLinks
-          : JSON.parse(updateTalentDto.socialLinks);
-    }
+    const talentData: UpdateTalentDto = {
+      firstName: updateTalentDto.firstName,
+      lastName: updateTalentDto.lastName,
+      email: updateTalentDto.email,
+      generalCategories: updateTalentDto.generalCategories,
+      specificCategories: updateTalentDto.specificCategories,
+      removedCategories: updateTalentDto.removedCategories,
+      serviceName: updateTalentDto.serviceName,
+      address: updateTalentDto.address,
+      phoneNumber: updateTalentDto.phoneNumber,
+      status: updateTalentDto.status,
+      isEmailVerified: updateTalentDto.isEmailVerified,
+      verificationToken: updateTalentDto.verificationToken,
+      isOnline: updateTalentDto.isOnline,
+      isPublic: updateTalentDto.isPublic,
+      languagesSpoken: updateTalentDto.languagesSpoken,
+      bio: updateTalentDto.bio,
+      services: updateTalentDto.services,
+      hourlyRate: updateTalentDto.hourlyRate,
+      city: updateTalentDto.city,
+      availability: updateTalentDto.availability,
+      socialLinks: updateTalentDto.socialLinks,
+    };
 
     const mediaFiles = {
       profilePicture: files?.profilePicture?.[0],
@@ -564,17 +489,7 @@ export class TalentController {
       audios: files?.audios || [],
     };
 
-    const hasFiles =
-      !!mediaFiles.profilePicture ||
-      mediaFiles.images.length > 0 ||
-      mediaFiles.videos.length > 0 ||
-      mediaFiles.audios.length > 0;
-
-    return this.talentService.updateWithMedia(
-      id,
-      talentData,
-      hasFiles ? mediaFiles : null,
-    );
+    return this.talentService.updateWithMedia(id, talentData, mediaFiles);
   }
 
   @Delete(':id')
