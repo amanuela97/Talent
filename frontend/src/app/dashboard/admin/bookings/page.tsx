@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BookingStatus } from "../../../../types/prismaTypes";
@@ -43,19 +42,12 @@ interface Booking {
 }
 
 export default function AdminBookingsPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus | "ALL">(
     "ALL"
   );
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    }
-  }, [status, router]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -145,7 +137,7 @@ export default function AdminBookingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 h-screen px-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">All Bookings</h1>
         <Select

@@ -3,10 +3,27 @@
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Role } from "@/types/prismaTypes";
 
 export default function BookingConfirmationPage() {
   const params = useParams();
   const router = useRouter();
+  const { data: session } = useSession();
+
+  const getDashboardPath = () => {
+    const role = session?.user?.role as Role;
+    switch (role) {
+      case Role.ADMIN:
+        return "/dashboard/admin/bookings";
+      case Role.TALENT:
+        return "/dashboard/talent/bookings";
+      case Role.CUSTOMER:
+        return "/dashboard/customer/bookings";
+      default:
+        return "/dashboard/customer/bookings";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -34,11 +51,11 @@ export default function BookingConfirmationPage() {
             </Button>
 
             <Button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push(getDashboardPath())}
               variant="outline"
               className="w-full"
             >
-              Go to Dashboard
+              Go to {session?.user?.role?.toLowerCase() || "Your"} Dashboard
             </Button>
           </div>
         </div>

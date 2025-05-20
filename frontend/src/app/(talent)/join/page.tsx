@@ -31,7 +31,7 @@ export default function JoinPage() {
           } else if (talentData.status === "PENDING") {
             router.push("/join/pending");
           } else if (talentData.status === "APPROVED") {
-            router.push("/dashboard");
+            router.push("/dashboard/talent");
           } else if (talentData.status === "REJECTED") {
             setIsRejected(true);
             setExistingTalentId(talentData.talentId);

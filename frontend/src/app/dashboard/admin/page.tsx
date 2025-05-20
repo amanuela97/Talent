@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 import {
   UserCheck,
   Users,
@@ -19,12 +19,13 @@ import {
   FileText,
   HelpCircle,
   Tag,
-} from 'lucide-react';
-import Link from 'next/link';
-import Loader from '@/components/custom/Loader';
-import { toast } from 'sonner';
-import axiosInstance from '@/app/utils/axios';
-import { handleSignOut } from '@/app/utils/helper';
+  Book,
+} from "lucide-react";
+import Link from "next/link";
+import Loader from "@/components/custom/Loader";
+import { toast } from "sonner";
+import axiosInstance from "@/app/utils/axios";
+import { handleSignOut } from "@/app/utils/helper";
 
 interface DashboardStats {
   totalTalents: number;
@@ -48,16 +49,16 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Check if user is authenticated and is an admin
-    if (status === 'authenticated') {
-      if (session?.user?.role !== 'ADMIN') {
-        toast.info('You do not have permission to view this page.');
-        router.push('/');
+    if (status === "authenticated") {
+      if (session?.user?.role !== "ADMIN") {
+        toast.info("You do not have permission to view this page.");
+        router.push("/");
       } else {
         // Fetch dashboard statistics
         fetchDashboardStats();
       }
-    } else if (status === 'unauthenticated') {
-      router.push('/login');
+    } else if (status === "unauthenticated") {
+      router.push("/login");
     }
   }, [status, session, router]);
 
@@ -73,7 +74,7 @@ export default function AdminDashboard() {
       try {
         // Fetch pending talents to get count
         const pendingResponse = await axiosInstance.get(
-          '/talents/admin/pending'
+          "/talents/admin/pending"
         );
         pendingCount =
           pendingResponse.data.totalCount ||
@@ -84,35 +85,35 @@ export default function AdminDashboard() {
             ? pendingResponse.data.length
             : 0) ||
           0;
-        console.log('Pending talents response:', pendingResponse.data);
+        console.log("Pending talents response:", pendingResponse.data);
       } catch (pendingError) {
-        console.error('Error fetching pending talents:', pendingError);
+        console.error("Error fetching pending talents:", pendingError);
         // Continue with other stats
       }
 
       try {
         // Fetch pending categories
         const pendingCategoriesResponse = await axiosInstance.get(
-          '/talent_categories',
+          "/talent_categories",
           {
-            params: { status: 'PENDING' },
+            params: { status: "PENDING" },
           }
         );
         pendingCategoriesCount = pendingCategoriesResponse.data.length || 0;
       } catch (categoriesError) {
-        console.error('Error fetching pending categories:', categoriesError);
+        console.error("Error fetching pending categories:", categoriesError);
         // Continue with other stats
       }
 
       try {
         // Example of how you might fetch other stats
         // In a real app, you would create proper endpoints for these
-        const talentsResponse = await axiosInstance.get('/talents', {
+        const talentsResponse = await axiosInstance.get("/talents", {
           params: { take: 1 },
         });
         totalTalents = talentsResponse.data.totalCount || 0;
       } catch (talentsError) {
-        console.error('Error fetching total talents:', talentsError);
+        console.error("Error fetching total talents:", talentsError);
         // Continue with default values
       }
 
@@ -125,9 +126,9 @@ export default function AdminDashboard() {
         totalBookings: 25, // Example placeholder
       });
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error("Error fetching dashboard stats:", error);
       toast.error(
-        'Failed to fetch some dashboard statistics. Using available data.'
+        "Failed to fetch some dashboard statistics. Using available data."
       );
 
       // Still set stats with defaults to avoid a completely empty dashboard
@@ -143,11 +144,11 @@ export default function AdminDashboard() {
     }
   };
 
-  if (isLoading || status === 'loading') {
+  if (isLoading || status === "loading") {
     return <Loader />;
   }
 
-  if (!session || session.user?.role !== 'ADMIN') {
+  if (!session || session.user?.role !== "ADMIN") {
     return null; // This will be redirected by the useEffect
   }
 
@@ -155,68 +156,68 @@ export default function AdminDashboard() {
   const adminMenuItems = [
     {
       icon: <UserCheck className="h-5 w-5" />,
-      title: 'Talent Approval',
-      description: 'Review and approve pending talent applications',
-      href: '/admin/dashboard/talent-approval',
-      color: 'bg-amber-100 text-amber-600',
+      title: "Talent Approval",
+      description: "Review and approve pending talent applications",
+      href: "/dashboard/admin/talent-approval",
+      color: "bg-amber-100 text-amber-600",
       count: stats.pendingApprovals,
     },
     {
       icon: <Tag className="h-5 w-5" />,
-      title: 'Category Management',
-      description: 'Review and approve pending category suggestions',
-      href: '/admin/dashboard/category-management',
-      color: 'bg-emerald-100 text-emerald-600',
+      title: "Category Management",
+      description: "Review and approve pending category suggestions",
+      href: "/dashboard/admin/category-management",
+      color: "bg-emerald-100 text-emerald-600",
     },
     {
       icon: <Users className="h-5 w-5" />,
-      title: 'User Management',
-      description: 'Manage user accounts and permissions',
-      href: '/dashboard/users',
-      color: 'bg-blue-100 text-blue-600',
+      title: "User Management",
+      description: "Manage user accounts and permissions",
+      href: "/dashboard/admin/users",
+      color: "bg-blue-100 text-blue-600",
       count: stats.totalUsers,
     },
     {
       icon: <BarChart2 className="h-5 w-5" />,
-      title: 'Analytics',
-      description: 'View platform statistics and metrics',
-      href: '/dashboard/analytics',
-      color: 'bg-purple-100 text-purple-600',
+      title: "Analytics",
+      description: "View platform statistics and metrics",
+      href: "/dashboard/admin/analytics",
+      color: "bg-purple-100 text-purple-600",
     },
     {
       icon: <MessageSquare className="h-5 w-5" />,
-      title: 'Messages',
-      description: 'Manage platform communications',
-      href: '/dashboard/messages',
-      color: 'bg-green-100 text-green-600',
+      title: "Messages",
+      description: "Manage platform communications",
+      href: "/dashboard/admin/messages",
+      color: "bg-green-100 text-green-600",
     },
     {
-      icon: <FileText className="h-5 w-5" />,
-      title: 'Content Management',
-      description: 'Manage platform content and pages',
-      href: '/dashboard/content',
-      color: 'bg-pink-100 text-pink-600',
+      icon: <Book className="h-5 w-5" />,
+      title: "Bookings",
+      description: "Manage talent bookings",
+      href: "/dashboard/admin/bookings",
+      color: "bg-pink-100 text-pink-600",
     },
     {
       icon: <Settings className="h-5 w-5" />,
-      title: 'Settings',
-      description: 'Platform configuration and settings',
-      href: '/dashboard/settings',
-      color: 'bg-gray-100 text-gray-600',
+      title: "Settings",
+      description: "Platform configuration and settings",
+      href: "/dashboard/admin/settings",
+      color: "bg-gray-100 text-gray-600",
     },
     {
       icon: <HelpCircle className="h-5 w-5" />,
-      title: 'Support',
-      description: 'Manage user support tickets',
-      href: '/dashboard/support',
-      color: 'bg-teal-100 text-teal-600',
+      title: "Support",
+      description: "Manage user support tickets",
+      href: "/dashboard/admin/support",
+      color: "bg-teal-100 text-teal-600",
     },
     {
       icon: <LogOut className="h-5 w-5" />,
-      title: 'Sign Out',
-      description: 'Log out from the admin dashboard',
+      title: "Sign Out",
+      description: "Log out from the admin dashboard",
       action: handleSignOut,
-      color: 'bg-red-100 text-red-600',
+      color: "bg-red-100 text-red-600",
     },
   ];
 
@@ -225,7 +226,7 @@ export default function AdminDashboard() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Welcome back, {session.user?.name || 'Admin'}
+          Welcome back, {session.user?.name || "Admin"}
         </p>
       </div>
 

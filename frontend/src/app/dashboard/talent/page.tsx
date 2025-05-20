@@ -1,17 +1,17 @@
-'use client';
-import { useSession } from 'next-auth/react';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+"use client";
+import { useSession } from "next-auth/react";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Calendar,
   Settings,
@@ -21,13 +21,13 @@ import {
   Edit,
   Upload,
   DollarSign,
-} from 'lucide-react';
-import Link from 'next/link';
-import Loader from '@/components/custom/Loader';
-import { usePathname } from 'next/navigation';
-import { useTalentStatus } from '@/hooks/useTalentStatus';
-import { useEffect, useState } from 'react';
-import { LogoutButton } from '@/components/custom/LogoutButton';
+} from "lucide-react";
+import Link from "next/link";
+import Loader from "@/components/custom/Loader";
+import { usePathname } from "next/navigation";
+import { useTalentStatus } from "@/hooks/useTalentStatus";
+import { useEffect, useState } from "react";
+import { LogoutButton } from "@/components/custom/LogoutButton";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -50,7 +50,7 @@ export default function Dashboard() {
   }, [isLoading, isApproved, checkRedirect, pathname]);
 
   // Show loading state until we confirm authorization
-  if (isLoading || status === 'loading' || !user || !isAuthorized) {
+  if (isLoading || status === "loading" || !user || !isAuthorized) {
     return <Loader />;
   }
 
@@ -68,7 +68,7 @@ export default function Dashboard() {
               <span className="text-sm font-medium">Profile</span>
             </Link>
             <Link
-              href="#"
+              href="/dashboard/talent/bookings"
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-100"
             >
               <Calendar className="h-5 w-5" />
@@ -140,7 +140,7 @@ export default function Dashboard() {
                           <Image
                             src={
                               user.profilePicture ||
-                              '/placeholder.svg?height=32&width=32'
+                              "/placeholder.svg?height=32&width=32"
                             }
                             alt="User Avatar"
                             width={96}

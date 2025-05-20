@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,17 +30,10 @@ interface Booking {
 }
 
 export default function TalentBookingsPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<BookingStatus | "ALL">("ALL");
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    }
-  }, [status, router]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -131,7 +123,7 @@ export default function TalentBookingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 h-screen px-10">
       <h1 className="text-3xl font-bold mb-8">Booking Inquiries</h1>
 
       <Tabs
@@ -147,7 +139,7 @@ export default function TalentBookingsPage() {
           <TabsTrigger value="COMPLETED">Completed</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={activeTab}>
+        <TabsContent value={activeTab} className="">
           <div className="grid gap-4">
             {!bookings?.length || bookings?.length === 0 ? (
               <Card>

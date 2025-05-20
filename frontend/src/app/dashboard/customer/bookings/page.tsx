@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,17 +32,10 @@ interface Booking {
 }
 
 export default function CustomerBookingsPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session } = useSession();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<BookingStatus | "ALL">("ALL");
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    }
-  }, [status, router]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -59,13 +51,12 @@ export default function CustomerBookingsPage() {
         }
       } catch (error) {
         if (isAxiosError(error)) {
-          toast.error(
-            error.response?.data?.message || "Failed to load bookings"
-          );
+          const message = error.response?.data?.message?.message;
+          toast.error(message);
         } else {
-          toast.error("Failed to load bookings");
+          toast.error("Failed to load bookings page");
+          console.error("Error fetching bookings:", error);
         }
-        console.error("Error fetching bookings:", error);
       } finally {
         setLoading(false);
       }
@@ -130,7 +121,7 @@ export default function CustomerBookingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 h-screen px-10">
       <h1 className="text-3xl font-bold mb-8">My Bookings</h1>
 
       <Tabs

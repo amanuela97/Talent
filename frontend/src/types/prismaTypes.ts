@@ -1,6 +1,12 @@
 // This file exports types from Prisma schema for frontend use
 import { Review, User } from "@prisma/client";
 
+export enum Role {
+  ADMIN = "ADMIN",
+  TALENT = "TALENT",
+  CUSTOMER = "CUSTOMER",
+}
+
 export enum BookingStatus {
   PENDING = "PENDING",
   ACCEPTED = "ACCEPTED",
