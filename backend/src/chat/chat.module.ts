@@ -7,7 +7,6 @@ import { ConversationsService } from './services/conversations.service';
 import { MessagesService } from './services/messages.service';
 import { PrismaService } from '../prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 
 @Module({
   controllers: [
@@ -21,7 +20,6 @@ import { ConfigService } from '@nestjs/config';
     ChatGateway,
     PrismaService,
     JwtService,
-    ConfigService,
   ],
   exports: [ConversationsService, MessagesService],
 })

@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookingStatus } from "../../../../types/prismaTypes";
+import { BookingStatus, Role } from "../../../../types/prismaTypes";
 import { format } from "date-fns";
-import { toast } from "sonner";
 import Image from "next/image";
 import {
   Select,
@@ -15,101 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import axiosInstance from "@/app/utils/axios";
-import { isAxiosError } from "axios";
-
-interface Booking {
-  bookingId: string;
-  eventType: string;
-  eventDate: string;
-  eventTime: string;
-  location: string;
-  status: BookingStatus;
-  talent: {
-    firstName: string;
-    lastName: string;
-    serviceName: string;
-    talentProfilePicture: string;
-  };
-  client: {
-    name: string;
-    email: string;
-    profilePicture: string;
-  };
-  duration: number;
-  guestCount: number;
-  budgetAmount: number;
-}
+import { useBookings } from "@/hooks/useBookings";
 
 export default function AdminBookingsPage() {
   const { data: session } = useSession();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<BookingStatus | "ALL">(
     "ALL"
   );
-
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const response = await axiosInstance.get(
-          `/bookings${
-            selectedStatus !== "ALL" ? `?status=${selectedStatus}` : ""
-          }`
-        );
-
-        if (response.data) {
-          setBookings(response.data);
-        }
-      } catch (error) {
-        if (isAxiosError(error)) {
-          toast.error(
-            error.response?.data?.message || "Failed to load bookings"
-          );
-        } else {
-          toast.error("Failed to load bookings");
-        }
-        console.error("Error fetching bookings:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (session?.user?.userId) {
-      fetchBookings();
-    }
-  }, [session?.user?.userId, selectedStatus]);
-
-  const handleStatusUpdate = async (
-    bookingId: string,
-    newStatus: BookingStatus
-  ) => {
-    try {
-      await axiosInstance.patch(`/bookings/${bookingId}/status`, {
-        status: newStatus,
-      });
-
-      // Update local state
-      setBookings((prevBookings) =>
-        prevBookings.map((booking) =>
-          booking.bookingId === bookingId
-            ? { ...booking, status: newStatus }
-            : booking
-        )
-      );
-
-      toast.success(`Booking status updated to ${newStatus.toLowerCase()}`);
-    } catch (error) {
-      if (isAxiosError(error)) {
-        toast.error(
-          error.response?.data?.message || "Failed to update booking status"
-        );
-      } else {
-        toast.error("Failed to update booking status");
-      }
-      console.error("Error updating booking status:", error);
-    }
-  };
+  const { bookings, isLoading, updateStatus } = useBookings(
+    session?.user?.userId || "",
+    (session?.user?.role as Role) || "",
+    selectedStatus
+  );
 
   const getStatusColor = (status: BookingStatus) => {
     switch (status) {
@@ -128,7 +44,7 @@ export default function AdminBookingsPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
@@ -238,10 +154,10 @@ export default function AdminBookingsPage() {
                   <Select
                     value={booking.status}
                     onValueChange={(value) =>
-                      handleStatusUpdate(
-                        booking.bookingId,
-                        value as BookingStatus
-                      )
+                      updateStatus({
+                        bookingId: booking.bookingId,
+                        newStatus: value as BookingStatus,
+                      })
                     }
                   >
                     <SelectTrigger className="w-[180px]">

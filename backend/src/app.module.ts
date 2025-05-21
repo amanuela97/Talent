@@ -10,9 +10,15 @@ import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { CategoryModule } from './category/category.module';
+import { ChatGateway } from './chat/gateways/chat.gateway';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true, // This makes it available in all modules automatically
+    }),
     UserModule,
     AuthModule,
     TalentModule,
@@ -23,7 +29,7 @@ import { CategoryModule } from './category/category.module';
     CategoryModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [AppService, PrismaService, ChatGateway, JwtService],
   exports: [PrismaService],
 })
 export class AppModule implements OnModuleInit {

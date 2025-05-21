@@ -14,7 +14,7 @@ model User {
   email            String               @unique
   passwordHash     String
   role             Role                 @default(CUSTOMER)
-  profilePicture   String?
+  profilePicture   String?              @default("https://res.cloudinary.com/metropolia-fi/image/upload/c_thumb,w_200,g_face/v1747854256/talent/profile/kzaivn9ehcisq5f8ojxg.jpg")
   authProvider     AuthProvider         @default(CREDENTIALS)
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt

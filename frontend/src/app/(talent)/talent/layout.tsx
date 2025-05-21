@@ -1,10 +1,10 @@
-'use client';
-import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
-import Loader from '@/components/custom/Loader';
-import { useTalentProfile } from '@/hooks/useTalentProfile';
-import axiosInstance from '@/app/utils/axios';
+"use client";
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import Loader from "@/components/custom/Loader";
+import { useTalentProfile } from "@/hooks/useTalentProfile";
+import axiosInstance from "@/app/utils/axios";
 
 export default function TalentLayout({
   children,
@@ -15,7 +15,7 @@ export default function TalentLayout({
   const { talent, loading: talentLoading } = useTalentProfile();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect');
+  const redirect = searchParams.get("redirect");
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isRefreshingSession, setIsRefreshingSession] = useState(false);
   const authCheckCompleted = useRef(false);
@@ -24,9 +24,9 @@ export default function TalentLayout({
     // Skip rechecking if we've already done an initial auth check
     if (authCheckCompleted.current) return;
 
-    if (status === 'unauthenticated') {
+    if (status === "unauthenticated") {
       setIsRedirecting(true);
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
@@ -35,10 +35,10 @@ export default function TalentLayout({
       try {
         setIsRefreshingSession(true);
         // Fetch the latest user data
-        const response = await axiosInstance.get('/auth/me');
+        const response = await axiosInstance.get("/auth/me");
 
         if (response.data) {
-          console.log('Latest user data from server:', response.data);
+          console.log("Latest user data from server:", response.data);
 
           // Update the session with the latest user data
           // Note: updateSession() triggers a re-render but doesn't update the current session object immediately
@@ -55,7 +55,7 @@ export default function TalentLayout({
           return response.data.user.role; // Return the role from the API for immediate use
         }
       } catch (error) {
-        console.error('Failed to refresh session:', error);
+        console.error("Failed to refresh session:", error);
       } finally {
         setIsRefreshingSession(false);
       }
@@ -65,18 +65,18 @@ export default function TalentLayout({
     const checkAccess = async () => {
       // Refresh session only if we have an authenticated session
       let latestRole = null;
-      if (status === 'authenticated' && talent?.status === 'APPROVED') {
+      if (status === "authenticated" && talent?.status === "APPROVED") {
         latestRole = await refreshUserSession();
         console.log(
-          'Latest role from API:',
+          "Latest role from API:",
           latestRole,
-          '(Using this for access control)'
+          "(Using this for access control)"
         );
       }
 
       // Wait until both session and talent data are loaded
       if (
-        status === 'authenticated' &&
+        status === "authenticated" &&
         !talentLoading &&
         !isRefreshingSession
       ) {
@@ -86,57 +86,57 @@ export default function TalentLayout({
         const talentStatus = talent?.status;
         authCheckCompleted.current = true;
         console.log(
-          'Using role for access check:',
+          "Using role for access check:",
           userRole,
-          'Talent status:',
+          "Talent status:",
           talentStatus
         );
 
         // Only allow APPROVED talents to access talent routes
-        if (userRole === 'TALENT') {
-          if (talentStatus === 'APPROVED') {
+        if (userRole === "TALENT") {
+          if (talentStatus === "APPROVED") {
             // Allow access to talent routes
             return;
-          } else if (talentStatus === 'PENDING') {
+          } else if (talentStatus === "PENDING") {
             setIsRedirecting(true);
-            router.push('/join/pending');
+            router.push("/join/pending");
             return;
-          } else if (talentStatus === 'REJECTED') {
+          } else if (talentStatus === "REJECTED") {
             setIsRedirecting(true);
-            router.push('/join');
+            router.push("/join");
             return;
           } else {
             setIsRedirecting(true);
-            router.push('/');
+            router.push("/");
             return;
           }
         } else {
           // Check if this user is actually an approved talent but session hasn't updated
-          if (talentStatus === 'APPROVED') {
+          if (talentStatus === "APPROVED") {
             // Try refreshing the session one more time if we haven't already
             if (!latestRole) {
               latestRole = await refreshUserSession();
-              console.log('Second attempt latestRole:', latestRole);
+              console.log("Second attempt latestRole:", latestRole);
             }
 
             // If after refreshing, the latest role is TALENT, allow access
-            if (latestRole === 'TALENT') {
+            if (latestRole === "TALENT") {
               return; // Allow access
             }
 
             // Otherwise redirect
             setIsRedirecting(true);
             const roleBasedRoute =
-              session?.user?.role === 'ADMIN'
-                ? '/admin/dashboard'
-                : '/dashboard';
+              session?.user?.role === "ADMIN"
+                ? "/dashboard/admin"
+                : "/dashboard/talent";
             const destination = redirect ?? roleBasedRoute;
             router.push(destination);
           } else {
             // Redirect other roles to their appropriate dashboards
             setIsRedirecting(true);
             const roleBasedRoute =
-              userRole === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+              userRole === "ADMIN" ? "/dashboard/admin" : "/dashboard/talent";
             const destination = redirect ?? roleBasedRoute;
             router.push(destination);
           }
@@ -158,7 +158,7 @@ export default function TalentLayout({
 
   // Show the loader during initial load, when refreshing session, or when redirecting
   if (
-    (status === 'loading' || talentLoading || isRefreshingSession) &&
+    (status === "loading" || talentLoading || isRefreshingSession) &&
     !authCheckCompleted.current
   ) {
     return <Loader />;

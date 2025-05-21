@@ -186,7 +186,7 @@ export default function TalentRegistrationForm({
       router.push("/join/verify");
     } catch (error) {
       const errorMessage = isAxiosError(error)
-        ? error.response?.data?.message
+        ? error.response?.data?.message?.message
         : "Error creating/updating talent profile";
       console.error(errorMessage, error);
       alert(
@@ -288,8 +288,8 @@ export default function TalentRegistrationForm({
                 {isSubmitting
                   ? "Submitting..."
                   : isRejected
-                    ? "Resubmit"
-                    : "Submit"}
+                  ? "Resubmit"
+                  : "Submit"}
               </Button>
             )}
           </div>

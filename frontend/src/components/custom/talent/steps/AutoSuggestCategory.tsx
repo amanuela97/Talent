@@ -56,7 +56,7 @@ export const AutoSuggestCategory: React.FC<AutoSuggestCategoryProps> = ({
         setSuggestions(res.data);
       } catch (error) {
         const errorMessage = isAxiosError(error)
-          ? error.response?.data?.message
+          ? error.response?.data?.message?.message
           : error;
         if (errorMessage) {
           console.log("Error fetching categories:", errorMessage);

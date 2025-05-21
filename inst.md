@@ -1,134 +1,111 @@
-Pages and Functionalities by User Role
-The next step is building separate pages (or dashboards) tailored to the type of user in your system.
+- build an inbox/chat for chating following these instructions below.
+- when building the UI for the following features try seperating parts into components and importing them instead of dumping all jsx in a single page.tsx file.
+- The backend logic for this feature is already presesent inside /chat folder you can modify it only if required but try and integrate it.
+- Enable Chat capabilities only After the Talent Accepts an Inquiry
+- have the backend create the conversation once booking status is "ACCEPTED" and notify both parties that messaging is now available by displaying a UI for starting a conversation.
 
-A. For Talent Accounts
+1. Pages & Dashboards to Build
+   The chat feature should include two primary pages:
 
-1. Talent Dashboard – Booking Inquiries Page
-   URL Example: /dashboard/talent/bookings
+A. Inbox / Conversation List Page
+Purpose: Show all the conversations pertinent to the logged-in user (whether an ADMIN, TALENT, or CUSTOMER).
 
-Purpose: Display all incoming booking inquiries where booking.talentId equals the logged-in talent’s ID.
+Key Features:
 
-Content and Features:
+Fetch Conversations: When the page loads, make an API call (e.g., GET //conversations?userId=...) to retrieve conversation metadata. Each conversation should include:
 
-List View: Each row (or card) shows key details:
+Conversation ID
 
-Customer name (or alias)
+Conversation name (or the names/avatars of the other participant(s))
 
-Event date, type, location, and any provided notes
+Last message snippet
 
-Current booking status (e.g., Pending, Accepted, Declined)
+Timestamp from the latest message
 
-Actions:
+Unread count
 
-Accept/Decline Buttons: For a pending inquiry, talent can click to move the booking status to ACCEPTED or DECLINED.
+Role-Based Considerations:
 
-View Details & Communication: A “View More” button opens a detailed view or modal that shows the full booking details and also initiates a messaging thread if further clarification is needed.
+Talents: Their inbox shows inquiries for which they are the booked talent. (Make sure to avoid showing conversations if a talent is trying to book themselves.)
 
-Filters/Sorting: Ability to filter by status, event date, or even search by customer name.
+Customers: They see all the booking inquiries they have initiated along with any approved conversations.
 
-B. For Customer Accounts
+Admins: They see all conversations platform-wide (or they may have separate filtering).
 
-1. Customer Dashboard – My Bookings Page
-   URL Example: /dashboard/customer/bookings
+Navigation: Each conversation should be clickable to navigate to the detailed chat view (e.g., dashboard/inbox/[conversationId]).
 
-Purpose: List all bookings that the customer has made as the initiator (where booking.customerId equals the logged-in user’s ID).
+UI Example: A list or card layout with each conversation rendered as a row containing the conversation title, last message, and a badge with the unread number. Optionally, sorting or filtering options can be provided.
 
-Content and Features:
+B. Conversation Detail (Chat Room) Page
+Purpose: Allow real-time communication within a specific conversation.
 
-Booking List Display: Each booking shows:
+Key Features:
 
-Talent’s name and a mini-profile image
+Message List: Display messages in chronological order including:
 
-Event summary (date, type, location)
+Sender’s name and/or avatar
 
-Current status (pending, accepted, etc.)
+Message content
 
-Actions:
+Time stamps and read receipts (if available)
 
-Cancel Booking: If the booking is still pending, the customer may cancel it.
+Input Area & Controls:
 
-View Details: For further communication or to see more specific event details.
+A text input box to draft messages
 
-Status Updates: Visual cues (colors or icons) for status; for example, a green checkmark when accepted, a red door for cancellations, etc.
+A “Send” button that sends the message via websockets
 
-C. For Admin Accounts
+Real-Time Updates:
 
-1. Admin Dashboard – All Bookings Page
-   URL Example: /dashboard/admin/bookings
+Listen for newMessage events from the ChatGateway using Socket.IO.
 
-Purpose: Allow admins to view and manage every booking/inquiry on the platform.
+Show typing status indicators by handling the typing event.
 
-Content and Features:
+Read Status:
 
-Global List View: Display all bookings with columns for:
+Automatically mark messages as read (via a socket event like markMessageRead as messages come into view).
 
-Talent name, Customer name
+UI Example: A full-page chat room that displays the entire conversation. The top can include the conversation header (showing the names/avatars of participants) and the message history below. The bottom has a persistent input field and send button.
 
-Event details (type, date, location)
+1. Frontend-Backend Integration (Next.js + NestJS via Socket.IO)
+   A. Setting Up Socket.IO Client in Next.js
+   - Install Socket.IO Client Library:
+   - Create a Custom Hook or Context: Build a reusable hook (for example, useChatSocket.js) to connect to your WebSocket server. Here’s a simplified version:
 
-Status
+Use the Hook Inside Your Pages: In your conversation detail page (dashboard/inbox/[conversationId]).
 
-Filtering/Sorting: Admins can filter by talent, customer, status, and sort by creation date.
+B. Inbox / Conversation List Page
 
-Actions/Overrides:
+Role-Based Filtering: Make sure your backend API filters conversations based on the authenticated user’s ID so that talents only see their inquiries and customers see the ones they initiated.
 
-Edit Booking: Admin can modify a booking’s details if needed.
+C. Conversation Detail Page
+Load Conversation History: When the conversation page is rendered, fetch the conversation’s history via an API endpoint (for example, GET /conversations/:conversationId).
 
-Status Override: If disputes arise, admins can change a booking’s status (for example, force an accepted booking into a cancelled state).
+Integrate Real-Time Chat: Use the socket hook created above to connect to the WebSocket server and join the corresponding room. The gateway code automatically joins the user to conversation-${conversation.id} rooms, so your messages automatically update for all participants.
 
-1. Implementation Details Across the Dashboard Pages
-   a. Dynamic Data Fetching
-   Next.js Data Fetching: Use SSR, static props, or client-side fetching (with SWR or React Query) to load booking data depending on the role.
+- UI and Message Input: Create a component that:
 
-Use segmented API endpoints (e.g., GET /bookings?talentId=<talentID> for talents and GET /bookings?customerId=<userID> for customers).
+- Displays a scrollable chat history (updates in real time when newMessage events arrive).
 
-Backend Endpoints: Build secured NestJS endpoints that return the list of bookings filtered by the current user’s role and IDs.
+- Has an input field for the user to type a message.
 
-b. Role-Based UI
-Conditional Rendering: In your dashboard layout component, check user.role and render:
+- Calls sendMessage({ conversationId, content }) on submit.
 
-Talent-specific components (booking inquiry list with accept/decline actions)
+- Triggers typing events as the user types.
 
-Customer-specific components (my bookings list with cancel option)
+- Emits markMessageRead when the user scrolls/read messages.
 
-Admin components (global booking list with additional management actions)
+1. In Summary
+   Pages to Build:
 
-Ensure Security: Include backend guards that verify the current user can only access bookings that belong to them (or, in the admin case, everything).
+Inbox Page (/dashboard/inbox): Lists conversations relevant to the logged-in user, sorted and filtered by their role (talent, customer, admin).
 
-1. Step-by-Step Booking Connection Process
-   Booking Submission:
+Conversation Detail Page (dashboard/inbox/[conversationId]): Displays the thread of messages, a message input area, read receipts, typing indicators, and real-time updates.
 
-The customer (or admin) fills out the booking/inquiry form on the talent detail page, and submits it.
+Backend-Frontend Connection via WebSockets:
 
-The form data is sent to the NestJS API after a check that the talent is not booking themselves.
+The ChatGateway in NestJS handles authentication, room joins, and listening to events.
 
-A new booking record is created (status set to PENDING).
+Your Next.js frontend uses socket.io-client (wrapped in a hook or context) to connect, send, and receive real-time messages.
 
-Notifications:
-
-The talent receives a notification and the booking appears in their dashboard.
-
-The customer receives a confirmation, and the booking appears in their “My Bookings” page.
-
-Optionally, the admin is notified if flagged or for global overview.
-
-Review & Response:
-
-The talent reviews the inquiry in their booking dashboard. They can view details, accept, decline, or initiate further discussion via an integrated messaging system.
-
-Once the talent updates the booking status (to ACCEPTED/DECLINED), the customer’s view is updated accordingly.
-
-Post-Booking Actions:
-
-For the Customer: They can see the confirmed booking details, access further communication, and possibly initiate actions like deposit payments or contract signing on an extended booking detail page.
-
-For the Talent: They manage upcoming events, track status changes, and see historical bookings.
-
-For the Admin: They monitor bookings across the platform, make corrections, resolve disputes, and generate reports or analytics.
-
-5. Final Considerations
-   User Interface Design: Invest time in making these dashboards easy to navigate with clear calls-to-action and visual cues for statuses.
-
-Backend Data Validation: Always enforce that a talent cannot book themselves and that users only access their own data (unless admin).
-
-Scalability: Design your API so that additional features (like payment integrations or review systems) can be layered on later.
+Events such as sendMessage, markMessageRead, and typing are all handled by your gateway and then broadcast to the appropriate rooms.

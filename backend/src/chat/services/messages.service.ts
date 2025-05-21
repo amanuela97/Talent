@@ -50,13 +50,15 @@ export class MessagesService {
     }
 
     // Check if user is part of the conversation
-    const userInConversation = await this.prisma.userOnConversation.findUnique({
-      where: {
-        userId_conversationId: {
-          userId: senderId,
-          conversationId,
+    const userInConversation = await this.prisma.safeQuery(async () => {
+      return await this.prisma.userOnConversation.findUnique({
+        where: {
+          userId_conversationId: {
+            userId: senderId,
+            conversationId,
+          },
         },
-      },
+      });
     });
 
     if (!userInConversation) {
@@ -64,34 +66,36 @@ export class MessagesService {
     }
 
     // Create message and automatically mark as read by sender
-    const message: CreateMessageResponse = await this.prisma.$transaction(
-      async (tx) => {
-        const createdMessage = await tx.message.create({
-          data: {
-            content,
-            conversationId,
-            senderId,
-          },
-          include: {
-            sender: {
-              select: {
-                userId: true,
-                name: true,
-                profilePicture: true,
+    const message: CreateMessageResponse = await this.prisma.safeQuery(
+      async () => {
+        return await this.prisma.$transaction(async (tx) => {
+          const createdMessage = await tx.message.create({
+            data: {
+              content,
+              conversationId,
+              senderId,
+            },
+            include: {
+              sender: {
+                select: {
+                  userId: true,
+                  name: true,
+                  profilePicture: true,
+                },
               },
             },
-          },
-        });
+          });
 
-        // Mark as read by sender
-        await tx.messageReadStatus.create({
-          data: {
-            messageId: createdMessage.id,
-            userId: senderId,
-          },
-        });
+          // Mark as read by sender
+          await tx.messageReadStatus.create({
+            data: {
+              messageId: createdMessage.id,
+              userId: senderId,
+            },
+          });
 
-        return createdMessage;
+          return createdMessage;
+        });
       },
     );
 
@@ -105,13 +109,15 @@ export class MessagesService {
     take = 20,
   ): Promise<Message[]> {
     // Verify user is in conversation
-    const userInConversation = await this.prisma.userOnConversation.findUnique({
-      where: {
-        userId_conversationId: {
-          userId,
-          conversationId,
+    const userInConversation = await this.prisma.safeQuery(async () => {
+      return await this.prisma.userOnConversation.findUnique({
+        where: {
+          userId_conversationId: {
+            userId,
+            conversationId,
+          },
         },
-      },
+      });
     });
 
     if (!userInConversation) {
@@ -119,41 +125,45 @@ export class MessagesService {
     }
 
     // Get messages with read statuses
-    return this.prisma.message.findMany({
-      where: {
-        conversationId,
-      },
-      include: {
-        sender: {
-          select: {
-            userId: true,
-            name: true,
-            profilePicture: true,
-          },
+    return await this.prisma.safeQuery(async () => {
+      return await this.prisma.message.findMany({
+        where: {
+          conversationId,
         },
-        readStatuses: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      skip,
-      take,
+        include: {
+          sender: {
+            select: {
+              userId: true,
+              name: true,
+              profilePicture: true,
+            },
+          },
+          readStatuses: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take,
+      });
     });
   }
 
   async findOne(id: string): Promise<FindOneMessageResponse> {
-    const message = await this.prisma.message.findUnique({
-      where: { id },
-      include: {
-        sender: {
-          select: {
-            userId: true,
-            name: true,
-            profilePicture: true,
+    const message = await this.prisma.safeQuery(async () => {
+      return await this.prisma.message.findUnique({
+        where: { id },
+        include: {
+          sender: {
+            select: {
+              userId: true,
+              name: true,
+              profilePicture: true,
+            },
           },
+          readStatuses: true,
         },
-        readStatuses: true,
-      },
+      });
     });
 
     if (!message) {
@@ -168,11 +178,13 @@ export class MessagesService {
     userId: string,
   ): Promise<MessageReadStatus> {
     // Check if message exists
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId },
-      include: {
-        readStatuses: true,
-      },
+    const message = await this.prisma.safeQuery(async () => {
+      return await this.prisma.message.findUnique({
+        where: { id: messageId },
+        include: {
+          readStatuses: true,
+        },
+      });
     });
 
     if (!message) {
@@ -180,11 +192,13 @@ export class MessagesService {
     }
 
     // Check if user is part of the conversation
-    const userInConversation = await this.prisma.userOnConversation.findFirst({
-      where: {
-        userId,
-        conversationId: message.conversationId,
-      },
+    const userInConversation = await this.prisma.safeQuery(async () => {
+      return await this.prisma.userOnConversation.findFirst({
+        where: {
+          userId,
+          conversationId: message.conversationId,
+        },
+      });
     });
 
     if (!userInConversation) {
@@ -200,12 +214,14 @@ export class MessagesService {
       return existingReadStatus;
     }
 
-    // Mark as read
-    return this.prisma.messageReadStatus.create({
-      data: {
-        messageId,
-        userId,
-      },
+    // Create read status
+    return await this.prisma.safeQuery(async () => {
+      return await this.prisma.messageReadStatus.create({
+        data: {
+          messageId,
+          userId,
+        },
+      });
     });
   }
 
@@ -213,41 +229,13 @@ export class MessagesService {
     messageId: string,
     userId: string,
   ): Promise<MessageReadStatus[]> {
-    // Check if message exists
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId },
-    });
-
-    if (!message) {
-      throw new NotFoundException(`Message with ID ${messageId} not found`);
-    }
-
-    // Verify user can access the message
-    const userInConversation = await this.prisma.userOnConversation.findFirst({
-      where: {
-        userId,
-        conversationId: message.conversationId,
-      },
-    });
-
-    if (!userInConversation) {
-      throw new ForbiddenException('User is not part of this conversation');
-    }
-
-    // Get read statuses
-    return this.prisma.messageReadStatus.findMany({
-      where: {
-        messageId,
-      },
-      include: {
-        user: {
-          select: {
-            userId: true,
-            name: true,
-            profilePicture: true,
-          },
+    return await this.prisma.safeQuery(async () => {
+      return await this.prisma.messageReadStatus.findMany({
+        where: {
+          messageId,
+          userId,
         },
-      },
+      });
     });
   }
 }

@@ -148,22 +148,26 @@ export class BookingsController {
       throw new BadRequestException('Invalid booking status');
     }
 
+    // Get the booking to check permissions and get talent ID
+    const booking = await this.bookingsService.getBookingById(
+      id,
+      req.user.userId,
+      req.user.role,
+    );
+
     // Only allow talent to update their own bookings unless admin
-    if (req.user.role === Role.TALENT) {
-      const booking = await this.bookingsService.getBookingById(
-        id,
-        req.user.userId,
-        req.user.role,
-      );
-      if (booking.talentId !== req.user.userId) {
-        throw new ForbiddenException('You can only update your own bookings');
-      }
+    if (req.user.role === Role.TALENT && booking.talentId !== req.user.userId) {
+      throw new ForbiddenException('You can only update your own bookings');
     }
+
+    // For admin updates, use the talent's ID from the booking
+    const talentId =
+      req.user.role === Role.ADMIN ? booking.talentId : req.user.userId;
 
     return this.bookingsService.updateBookingStatus(
       id,
       updateStatusDto.status,
-      req.user.userId,
+      talentId,
     );
   }
 

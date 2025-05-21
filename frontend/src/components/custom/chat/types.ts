@@ -11,11 +11,14 @@ export interface Conversation {
   groupImage: string | null;
   createdAt: string;
   updatedAt: string;
-  participants: {
-    userId: string;
-    user: User;
-  }[];
+  participants: Participant[];
   messages: Message[];
+}
+
+export interface Participant {
+  id: string;
+  userId: string;
+  user: User;
 }
 
 export interface Message {
