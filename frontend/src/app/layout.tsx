@@ -5,7 +5,8 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from './api/auth/[...nextauth]/route';
 import SessionProviderWrapper from '../components/custom/SessionProviderWrapper';
 import Footer from '@/components/custom/Footer';
-import { Navbar } from "../components/custom/Navbar";
+import HomeHeader from '@/components/custom/home/HomeHeader';
+import { Toaster } from '@/components/ui/sonner';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -20,6 +21,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Talent',
   description: 'Find performers for your next event',
+  icons: {
+    icon: '/assets/talent-logo.png',
+  },
 };
 
 export default async function RootLayout({
@@ -36,13 +40,15 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <Navbar userRole={userRole} userName={userName} userImage={userImage} />
         <SessionProviderWrapper session={session}>
+          <HomeHeader />
           {children}
+          <Footer />
+          <Toaster />
         </SessionProviderWrapper>
-        <Footer />
       </body>
     </html>
   );

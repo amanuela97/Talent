@@ -12,9 +12,8 @@ import { TokenResponse, UserPayload } from 'src/backendTypes';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { PrismaService } from 'src/prisma.service';
 import { Account } from '@prisma/client';
-import * as nodemailer from 'nodemailer';
-import { Transporter } from 'nodemailer';
 import * as crypto from 'crypto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -22,29 +21,21 @@ export class AuthService {
   private readonly REFRESH_TOKEN_EXPIRES = '7d';
   private readonly RESET_TOKEN_EXPIRES = 15 * 60 * 1000; // 15 minutes in milliseconds
   private readonly SALT_ROUNDS = 10;
-  private transporter: Transporter;
 
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
     private configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {
-    // Initialize nodemailer transporter
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: this.configService.get<string>('MAIL_USER'),
-        pass: this.configService.get<string>('MAIL_PASS'),
-      },
-    });
-  }
+    private readonly mailService: MailService, // Inject mail service
+  ) {}
 
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto);
     const payload: UserPayload = {
       userId: user.userId,
       username: user.name,
+      role: user.role,
     };
 
     return {
@@ -87,6 +78,7 @@ export class AuthService {
           const payload: UserPayload = {
             userId: existingUser.userId,
             username: existingUser.name,
+            role: existingUser.role,
           };
 
           return {
@@ -124,6 +116,7 @@ export class AuthService {
           const payload: UserPayload = {
             userId: existingUser.userId,
             username: existingUser.name,
+            role: existingUser.role,
           };
 
           return {
@@ -161,6 +154,7 @@ export class AuthService {
         const payload: UserPayload = {
           userId: user.userId,
           username: user.name,
+          role: user.role,
         };
 
         return {
@@ -238,8 +232,12 @@ export class AuthService {
           'http://localhost:3000',
         )}/reset-password/${resetToken}`;
 
-        // Send the email
-        await this.sendPasswordResetEmail(user.email, user.name, resetUrl);
+        // Send the email using mail service
+        await this.mailService.sendPasswordResetEmail(
+          user.email,
+          user.name,
+          resetUrl,
+        );
       }
 
       // Return success message (don't reveal if user exists for security)
@@ -266,7 +264,6 @@ export class AuthService {
     }
   }
 
-  // New method for reset password
   async resetPassword(
     token: string,
     newPassword: string,
@@ -305,44 +302,6 @@ export class AuthService {
     return { message: 'Password has been successfully reset' };
   }
 
-  // Helper method to send password reset email
-  private async sendPasswordResetEmail(
-    email: string,
-    name: string,
-    resetUrl: string,
-  ): Promise<void> {
-    const mailOptions = {
-      from: this.configService.get<string>('MAIL_USER'),
-      to: email,
-      subject: 'Password Reset Request',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Password Reset</h2>
-          <p>Hello ${name},</p>
-          <p>You requested a password reset. Click the button below to set a new password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" 
-               style="background-color: #4CAF50; color: white; padding: 14px 20px; 
-                      text-align: center; text-decoration: none; display: inline-block; 
-                      border-radius: 4px; font-weight: bold;">
-              Reset Password
-            </a>
-          </div>
-          <p>If you didn't request this, please ignore this email and your password will remain unchanged.</p>
-          <p>Note: This link will expire in 15 minutes.</p>
-          <p>Best regards,<br/>The Talent Team</p>
-        </div>
-      `,
-    };
-
-    try {
-      await this.transporter.sendMail(mailOptions);
-    } catch (error) {
-      console.error('Failed to send reset email:', error);
-      throw new Error('Failed to send password reset email');
-    }
-  }
-
   async validateUser(dto: LoginDto) {
     const user = await this.userService.findByEmail(dto.email);
 
@@ -370,10 +329,11 @@ export class AuthService {
     return this.generateTokens({
       userId: payload.userId,
       username: payload.username,
+      role: payload.role,
     });
   }
 
-  private async generateTokens(payload: UserPayload): Promise<TokenResponse> {
+  async generateTokens(payload: UserPayload): Promise<TokenResponse> {
     const jwtSecretKey = this.configService.get<string>('jwtSecretKey');
     const jwtRefreshTokenKey =
       this.configService.get<string>('jwtRefreshTokenKey');

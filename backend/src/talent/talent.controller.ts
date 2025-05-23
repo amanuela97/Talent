@@ -1,3 +1,4 @@
+import { TalentStatus } from '@prisma/client';
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
@@ -19,9 +20,9 @@ import {
   UploadedFiles,
   Req,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import {
   FileInterceptor,
-  AnyFilesInterceptor,
   FileFieldsInterceptor,
 } from '@nestjs/platform-express';
 import { TalentService } from './talent.service';
@@ -40,17 +41,21 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthenticatedRequest } from 'src/backendTypes';
+import { isBoolean, isString } from 'class-validator';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
 
 @ApiTags('Talents')
 @Controller('talents')
 export class TalentController {
-  constructor(private readonly talentService: TalentService) {}
+  constructor(private readonly talentService: TalentService) { }
 
   @Post('profile/:userId')
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @UseInterceptors(
     FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
       { name: 'images', maxCount: 10 },
       { name: 'videos', maxCount: 5 },
       { name: 'audios', maxCount: 5 },
@@ -74,15 +79,47 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
+        firstName: { type: 'string' },
+        lastName: { type: 'string' },
+        email: { type: 'string' },
+        generalCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of general category IDs',
+        },
+        specificCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of specific category IDs',
+        },
+        serviceName: { type: 'string' },
+        address: { type: 'string' },
+        phoneNumber: { type: 'string' },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'APPROVED', 'REJECTED'],
+          default: 'PENDING',
+        },
+        isEmailVerified: { type: 'boolean', default: false },
+        verificationToken: { type: 'string' },
+        isPublic: { type: 'boolean', default: false },
+        languagesSpoken: {
+          type: 'array',
+          items: { type: 'string' },
+        },
         bio: { type: 'string' },
         services: {
           type: 'array',
           items: { type: 'string' },
         },
         hourlyRate: { type: 'number' },
-        location: { type: 'string' },
+        city: { type: 'string' },
         availability: { type: 'object' },
         socialLinks: { type: 'object' },
+        profilePicture: {
+          type: 'string',
+          format: 'binary',
+        },
         images: {
           type: 'array',
           items: {
@@ -105,7 +142,18 @@ export class TalentController {
           },
         },
       },
-      required: ['bio', 'services', 'hourlyRate', 'location', 'availability'],
+      required: [
+        'firstName',
+        'lastName',
+        'email',
+        'generalCategories',
+        'specificCategories',
+        'serviceName',
+        'address',
+        'phoneNumber',
+        'verificationToken',
+        'profilePicture',
+      ],
     },
   })
   async create(
@@ -113,29 +161,58 @@ export class TalentController {
     @Body() createTalentDto: CreateTalentDto,
     @UploadedFiles()
     files: {
+      profilePicture?: Express.Multer.File[];
       images?: Express.Multer.File[];
       videos?: Express.Multer.File[];
       audios?: Express.Multer.File[];
     },
   ) {
+    // Validate that profile picture is provided
+    if (!files.profilePicture || files.profilePicture.length === 0) {
+      throw new BadRequestException('Profile picture is required');
+    }
+
+    // Validate that categories are provided
+    if (!createTalentDto.generalCategories || createTalentDto.generalCategories.length === 0) {
+      throw new BadRequestException('At least one general category is required');
+    }
+
+    if (!createTalentDto.specificCategories || createTalentDto.specificCategories.length === 0) {
+      throw new BadRequestException('At least one specific category is required');
+    }
+
     const talentData: CreateTalentDto = {
+      firstName: createTalentDto.firstName,
+      lastName: createTalentDto.lastName,
+      email: createTalentDto.email,
+      generalCategories: createTalentDto.generalCategories,
+      specificCategories: createTalentDto.specificCategories,
+      serviceName: createTalentDto.serviceName,
+      address: createTalentDto.address,
+      phoneNumber: createTalentDto.phoneNumber,
+      status:
+        createTalentDto.status &&
+          Object.values(TalentStatus).includes(createTalentDto.status)
+          ? createTalentDto.status
+          : undefined,
+      isEmailVerified: isBoolean(createTalentDto.isEmailVerified)
+        ? createTalentDto.isEmailVerified
+        : undefined,
+      verificationToken:
+        createTalentDto.verificationToken || crypto.randomUUID(),
+      isPublic: createTalentDto.isPublic,
+      languagesSpoken: createTalentDto.languagesSpoken,
       bio: createTalentDto.bio,
-      services: Array.isArray(createTalentDto.services)
-        ? createTalentDto.services
-        : JSON.parse(createTalentDto.services || '[]'),
-      hourlyRate: parseFloat(createTalentDto.hourlyRate.toString()),
-      location: createTalentDto.location,
-      availability:
-        typeof createTalentDto.availability === 'object'
-          ? createTalentDto.availability
-          : JSON.parse(createTalentDto.availability || '{}'),
-      socialLinks:
-        typeof createTalentDto.socialLinks === 'object'
-          ? createTalentDto.socialLinks
-          : JSON.parse(createTalentDto.socialLinks || '{}'),
+      services: createTalentDto.services,
+      hourlyRate: createTalentDto.hourlyRate,
+      city: createTalentDto.city,
+      availability: createTalentDto.availability,
+      socialLinks: createTalentDto.socialLinks,
+      isOnline: createTalentDto.isOnline,
     };
 
     const mediaFiles = {
+      profilePicture: files.profilePicture[0],
       images: files.images || [],
       videos: files.videos || [],
       audios: files.audios || [],
@@ -178,14 +255,44 @@ export class TalentController {
     description: 'Filter by maximum hourly rate',
   })
   @ApiQuery({
-    name: 'location',
+    name: 'city',
     required: false,
-    description: 'Filter by location',
+    description: 'Filter by city',
   })
   @ApiQuery({
     name: 'minRating',
     required: false,
     description: 'Filter by minimum rating',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Search by talent name, services, or general category',
+  })
+  @ApiQuery({
+    name: 'generalCategory',
+    required: false,
+    description: 'Filter by general category',
+  })
+  @ApiQuery({
+    name: 'languages',
+    required: false,
+    description: 'Filter by languages (comma separated)',
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description: 'Field to sort by',
+  })
+  @ApiQuery({
+    name: 'sortOrder',
+    required: false,
+    description: 'Sort order (asc or desc)',
+  })
+  @ApiQuery({
+    name: 'isPublic',
+    required: false,
+    description: 'Filter by public status',
   })
   @ApiResponse({ status: 200, description: 'List of talent profiles' })
   findAll(
@@ -194,8 +301,14 @@ export class TalentController {
     @Query('services') services?: string,
     @Query('minHourlyRate') minHourlyRate?: string,
     @Query('maxHourlyRate') maxHourlyRate?: string,
-    @Query('location') location?: string,
+    @Query('city') city?: string,
     @Query('minRating') minRating?: string,
+    @Query('search') search?: string,
+    @Query('generalCategory') generalCategory?: string,
+    @Query('languages') languages?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    @Query('isPublic') isPublic?: string,
   ) {
     return this.talentService.findAll({
       skip: skip ? parseInt(skip) : undefined,
@@ -203,9 +316,26 @@ export class TalentController {
       services: services ? services.split(',') : undefined,
       minHourlyRate: minHourlyRate ? parseFloat(minHourlyRate) : undefined,
       maxHourlyRate: maxHourlyRate ? parseFloat(maxHourlyRate) : undefined,
-      location,
+      city,
       minRating: minRating ? parseFloat(minRating) : undefined,
+      search,
+      generalCategory,
+      languages: languages ? languages.split(',') : undefined,
+      sortBy,
+      sortOrder,
+      isPublic: isPublic === 'true', // Convert string to boolean
     });
+  }
+  @Get('service/:serviceName')
+  @ApiOperation({ summary: 'Get talent profile by service name' })
+  @ApiParam({
+    name: 'serviceName',
+    description: 'Talent service name (slugified)',
+  })
+  @ApiResponse({ status: 200, description: 'Talent profile found' })
+  @ApiResponse({ status: 404, description: 'Talent profile not found' })
+  async findByServiceName(@Param('serviceName') serviceName: string) {
+    return this.talentService.findByServiceName(serviceName);
   }
 
   @Get(':id')
@@ -216,12 +346,21 @@ export class TalentController {
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.talentService.findOne(id);
   }
+  @Get('user/:userId')
+  @ApiOperation({ summary: 'Find talent by user ID' })
+  @ApiParam({ name: 'userId', type: 'string', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'Talent found' })
+  @ApiResponse({ status: 404, description: 'Talent not found' })
+  async findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
+    return await this.talentService.findByUserId(userId);
+  }
 
   @Patch(':id')
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
   @UseInterceptors(
     FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
       { name: 'images', maxCount: 10 },
       { name: 'videos', maxCount: 5 },
       { name: 'audios', maxCount: 5 },
@@ -239,15 +378,51 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
+        firstName: { type: 'string' },
+        lastName: { type: 'string' },
+        generalCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of general category IDs to assign',
+        },
+        specificCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of specific category IDs to assign',
+        },
+        removedCategories: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of category IDs to remove',
+        },
+        serviceName: { type: 'string' },
+        address: { type: 'string' },
+        phoneNumber: { type: 'string' },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'APPROVED', 'REJECTED'],
+        },
+        isEmailVerified: { type: 'boolean' },
+        verificationToken: { type: 'string' },
+        isOnline: { type: 'boolean' },
+        isPublic: { type: 'boolean' },
+        languagesSpoken: {
+          type: 'array',
+          items: { type: 'string' },
+        },
         bio: { type: 'string' },
         services: {
           type: 'array',
           items: { type: 'string' },
         },
         hourlyRate: { type: 'number' },
-        location: { type: 'string' },
+        city: { type: 'string' },
         availability: { type: 'object' },
         socialLinks: { type: 'object' },
+        profilePicture: {
+          type: 'string',
+          format: 'binary',
+        },
         images: {
           type: 'array',
           items: {
@@ -277,64 +452,43 @@ export class TalentController {
     @Body() updateTalentDto: UpdateTalentDto,
     @UploadedFiles()
     files: {
+      profilePicture?: Express.Multer.File[];
       images?: Express.Multer.File[];
       videos?: Express.Multer.File[];
       audios?: Express.Multer.File[];
     },
   ) {
-    const talentData: UpdateTalentDto = {};
-
-    if (updateTalentDto.bio) talentData.bio = updateTalentDto.bio;
-
-    if (updateTalentDto.services) {
-      talentData.services = Array.isArray(updateTalentDto.services)
-        ? updateTalentDto.services
-        : JSON.parse(updateTalentDto.services);
-    }
-
-    if (updateTalentDto.mediasToRemove) {
-      talentData.mediasToRemove = Array.isArray(updateTalentDto.mediasToRemove)
-        ? updateTalentDto.mediasToRemove
-        : JSON.parse(updateTalentDto.mediasToRemove);
-    }
-
-    if (updateTalentDto.hourlyRate) {
-      talentData.hourlyRate = parseFloat(updateTalentDto.hourlyRate.toString());
-    }
-
-    if (updateTalentDto.location)
-      talentData.location = updateTalentDto.location;
-
-    if (updateTalentDto.availability) {
-      talentData.availability =
-        typeof updateTalentDto.availability === 'object'
-          ? updateTalentDto.availability
-          : JSON.parse(updateTalentDto.availability);
-    }
-
-    if (updateTalentDto.socialLinks) {
-      talentData.socialLinks =
-        typeof updateTalentDto.socialLinks === 'object'
-          ? updateTalentDto.socialLinks
-          : JSON.parse(updateTalentDto.socialLinks);
-    }
+    const talentData: UpdateTalentDto = {
+      firstName: updateTalentDto.firstName,
+      lastName: updateTalentDto.lastName,
+      email: updateTalentDto.email,
+      categories: updateTalentDto.categories,
+      removedCategories: updateTalentDto.removedCategories,
+      serviceName: updateTalentDto.serviceName,
+      address: updateTalentDto.address,
+      phoneNumber: updateTalentDto.phoneNumber,
+      status: updateTalentDto.status,
+      isEmailVerified: updateTalentDto.isEmailVerified,
+      verificationToken: updateTalentDto.verificationToken,
+      isOnline: updateTalentDto.isOnline,
+      isPublic: updateTalentDto.isPublic,
+      languagesSpoken: updateTalentDto.languagesSpoken,
+      bio: updateTalentDto.bio,
+      services: updateTalentDto.services,
+      hourlyRate: updateTalentDto.hourlyRate,
+      city: updateTalentDto.city,
+      availability: updateTalentDto.availability,
+      socialLinks: updateTalentDto.socialLinks,
+    };
 
     const mediaFiles = {
+      profilePicture: files?.profilePicture?.[0],
       images: files?.images || [],
       videos: files?.videos || [],
       audios: files?.audios || [],
     };
 
-    const hasFiles =
-      mediaFiles.images.length > 0 ||
-      mediaFiles.videos.length > 0 ||
-      mediaFiles.audios.length > 0;
-
-    return this.talentService.updateWithMedia(
-      id,
-      talentData,
-      hasFiles ? mediaFiles : null,
-    );
+    return this.talentService.updateWithMedia(id, talentData, mediaFiles);
   }
 
   @Delete(':id')
@@ -416,7 +570,14 @@ export class TalentController {
   @Post(':id/media/bulk')
   @UseGuards(JwtGuard)
   @ApiBearerAuth()
-  @UseInterceptors(AnyFilesInterceptor())
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'profilePicture', maxCount: 1 },
+      { name: 'images', maxCount: 10 },
+      { name: 'videos', maxCount: 4 },
+      { name: 'audios', maxCount: 10 },
+    ]),
+  )
   @ApiOperation({ summary: 'Upload multiple media files for talent portfolio' })
   @ApiConsumes('multipart/form-data')
   @ApiParam({ name: 'id', description: 'Talent ID' })
@@ -424,6 +585,10 @@ export class TalentController {
     schema: {
       type: 'object',
       properties: {
+        profilePicture: {
+          type: 'string',
+          format: 'binary',
+        },
         images: {
           type: 'array',
           items: {
@@ -456,15 +621,63 @@ export class TalentController {
   @ApiResponse({ status: 404, description: 'Talent profile not found' })
   async uploadMultipleMedia(
     @Param('id', ParseUUIDPipe) id: string,
-    @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
+    @UploadedFiles()
+    files: {
+      profilePicture?: Express.Multer.File[];
+      images?: Express.Multer.File[];
+      videos?: Express.Multer.File[];
+      audios?: Express.Multer.File[];
+    },
   ) {
     const mediaFiles = {
+      profilePicture: files.profilePicture?.[0],
       images: files.images || [],
       videos: files.videos || [],
       audios: files.audios || [],
     };
 
-    return this.talentService.addMultipleMedia(id, mediaFiles);
+    console.log('Processed mediaFiles:', {
+      profilePicture: mediaFiles.profilePicture
+        ? mediaFiles.profilePicture.originalname
+        : 'none',
+      images: mediaFiles.images.length,
+      videos: mediaFiles.videos.length,
+      audios: mediaFiles.audios.length,
+    });
+
+    // Check if profile picture is present
+    if (mediaFiles.profilePicture) {
+      // Update profile picture separately
+      await this.talentService.updateProfilePicture(
+        id,
+        mediaFiles.profilePicture,
+      );
+    }
+
+    // Check if there are any other media files to process
+    const hasFiles =
+      mediaFiles.images.length > 0 ||
+      mediaFiles.videos.length > 0 ||
+      mediaFiles.audios.length > 0;
+
+    if (!hasFiles) {
+      if (mediaFiles.profilePicture) {
+        // If we only updated the profile picture but no other media,
+        // return success instead of trying to add other media
+        return {
+          success: true,
+          message: 'Profile picture updated successfully',
+        };
+      }
+      throw new BadRequestException('No media files provided');
+    }
+
+    // Process other media files
+    return this.talentService.addMultipleMedia(id, {
+      images: mediaFiles.images,
+      videos: mediaFiles.videos,
+      audios: mediaFiles.audios,
+    });
   }
 
   @Delete('media/:mediaId')
@@ -476,6 +689,69 @@ export class TalentController {
   @ApiResponse({ status: 404, description: 'Media not found' })
   async removeMedia(@Param('mediaId') mediaId: string) {
     return this.talentService.removeMedia(mediaId);
+  }
+  @Get(':id/reviews')
+  @ApiOperation({ summary: 'Get reviews for a talent profile' })
+  @ApiParam({ name: 'id', description: 'Talent ID' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number, starting from 1',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Number of reviews per page',
+  })
+  @ApiResponse({ status: 200, description: 'Reviews found' })
+  @ApiResponse({ status: 404, description: 'Talent profile not found' })
+  async getTalentReviews(
+    @Param('id') id: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '5',
+  ) {
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+
+    return this.talentService.getTalentReviews(id, pageNum, limitNum);
+  }
+
+  @Post(':id/review')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a review for a talent' })
+  @ApiParam({ name: 'id', description: 'Talent ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        rating: { type: 'number', minimum: 1, maximum: 5 },
+        comment: { type: 'string' },
+      },
+      required: ['rating', 'comment'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Review added successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid rating or comment' })
+  @ApiResponse({ status: 404, description: 'Talent profile not found' })
+  async addReview(
+    @Param('id') id: string,
+    @Body('rating') rating: number,
+    @Body('comment') comment: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!rating || rating < 1 || rating > 5) {
+      throw new BadRequestException('Rating must be between 1 and 5');
+    }
+
+    if (!comment || comment.trim().length === 0) {
+      throw new BadRequestException('Comment is required');
+    }
+
+    if (!req.user || !req.user.userId) {
+      throw new BadRequestException('User information is missing');
+    }
+    return this.talentService.addReview(id, req.user.userId, rating, comment);
   }
 
   @Get(':id/media')
@@ -517,13 +793,99 @@ export class TalentController {
     });
   }
 
-  @Get('search/by-location')
-  @ApiOperation({ summary: 'Search talents by location' })
-  @ApiQuery({ name: 'location', required: true, description: 'Location name' })
-  @ApiResponse({ status: 200, description: 'List of talents in the location' })
-  async searchByLocation(@Query('location') location: string) {
+  @Get('search/by-city')
+  @ApiOperation({ summary: 'Search talents by city' })
+  @ApiQuery({ name: 'city', required: true, description: 'City name' })
+  @ApiResponse({ status: 200, description: 'List of talents in the city' })
+  async searchByCity(@Query('city') city: string) {
     return this.talentService.findAll({
-      location,
+      city,
     });
+  }
+
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verify talent email with token' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        token: { type: 'string' },
+      },
+      required: ['token'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  @ApiResponse({ status: 404, description: 'Invalid verification token' })
+  async verifyEmail(@Body('token') token: string) {
+    return this.talentService.verifyEmail(token);
+  }
+
+  @Get('admin/pending')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all talents with pending status (Admin only)' })
+  @ApiResponse({ status: 200, description: 'List of pending talents' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+  })
+  async getPendingTalents() {
+    try {
+      return await this.talentService.findAll({
+        status: 'PENDING',
+        isEmailVerified: true,
+      });
+    } catch (error) {
+      // Log the error for debugging
+      console.error('Error fetching pending talents:', error);
+
+      // Rethrow to let the exception filters handle it
+      throw error;
+    }
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update talent status (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Talent ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'APPROVED', 'REJECTED'],
+        },
+        rejectionReason: {
+          type: 'string',
+          description:
+            'Reason for rejection (required when status is REJECTED)',
+        },
+      },
+      required: ['status'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Talent status updated successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({ status: 404, description: 'Talent not found' })
+  async updateTalentStatus(
+    @Param('id') id: string,
+    @Body('status') status: 'PENDING' | 'APPROVED' | 'REJECTED',
+    @Body('rejectionReason') rejectionReason?: string,
+  ) {
+    return this.talentService.updateStatus(id, status, rejectionReason);
   }
 }

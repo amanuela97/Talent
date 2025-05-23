@@ -9,64 +9,89 @@ datasource db {
 }
 
 model User {
-  userId         String         @id @default(uuid())
-  name           String
-  email          String         @unique
-  passwordHash   String
-  role           Role           @default(CUSTOMER)
-  profilePicture String?
-  authProvider   AuthProvider   @default(CREDENTIALS) 
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  resetToken     String?        @unique
+  userId           String               @id @default(uuid())
+  name             String
+  email            String               @unique
+  passwordHash     String
+  role             Role                 @default(CUSTOMER)
+  profilePicture   String?
+  authProvider     AuthProvider         @default(CREDENTIALS)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  resetToken       String?              @unique
   resetTokenExpiry DateTime?
-  accounts       Account[]
-  admin          Admin?
-  customer       Customer?
-  talent         Talent?
-  bookings       EventBooking[]
-  reviews        Review[]
-  messages       Message[]      @relation("UserMessages")
-  conversations  UserOnConversation[]
-  readStatuses   MessageReadStatus[]   // NEW: read receipts by this user
+  accounts         Account[]
+  admin            Admin?
+  customer         Customer?
+  talent           Talent?
+  bookings         EventBooking[]
+  reviews          Review[]
+  messages         Message[]            @relation("UserMessages")
+  conversations    UserOnConversation[]
+  readStatuses     MessageReadStatus[] // NEW: read receipts by this user
 }
 
 model Account {
-  id                 Int      @id @default(autoincrement())
-  provider           String
-  providerAccountId  String
-  accessToken        String
-  expiresAt          Int?
-  userId             String   @unique
-  user              User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  id                Int    @id @default(autoincrement())
+  provider          String
+  providerAccountId String
+  accessToken       String
+  expiresAt         Int?
+  userId            String @unique
+  user              User   @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
+// Removed invalid type definition as it is not supported in Prisma schema
+
 model Talent {
-  talentId            String     @id @default(uuid())
-  bio                 String
-  services            String[]
-  hourlyRate          Float
-  location            String
-  availability        Json
-  rating              Float      @default(0)
-  socialLinks         Json?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
-  media               Media[]
-  reviews             Review[]
-  user                User       @relation(fields: [talentId], references: [userId])
-  favoriteByCustomers Customer[] @relation("FavoriteTalents")
+  talentId             String           @id @default(uuid())
+  firstName            String
+  lastName             String
+  talentProfilePicture String
+  serviceName          String           @unique
+  address              String
+  phoneNumber          String
+  bio                  String?
+  status               TalentStatus     @default(PENDING)
+  rejectionReason      String? // Added to store reason for rejection
+  email                String           @unique
+  isEmailVerified      Boolean          @default(false)
+  verificationToken    String
+  services             String[]         @default([])
+  hourlyRate           Float?
+  city                 String?
+  availability         Json?
+  isOnline             Boolean?         @default(false)
+  isPublic             Boolean?         @default(false)
+  languagesSpoken      String[]         @default([])
+  rating               Float            @default(0)
+  socialLinks          Json?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  media                Media[]
+  reviews              Review[]
+  bookings             EventBooking[]
+  user                 User             @relation(fields: [talentId], references: [userId])
+  favoriteByCustomers  Customer[]       @relation("FavoriteTalents")
+  calendarEvents       CalendarEvent[]
+  categories           TalentCategory[]
+}
+
+enum TalentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Media {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   type        MediaType
   url         String
   publicId    String
   description String?
-  talentId   String
-  talent     Talent  @relation(fields: [talentId], references: [talentId])
-  createdAt   DateTime @default(now())
+  talentId    String
+  talent      Talent    @relation(fields: [talentId], references: [talentId])
+  createdAt   DateTime  @default(now())
 }
 
 enum MediaType {
@@ -114,14 +139,35 @@ model Reply {
 }
 
 model EventBooking {
-  bookingId         String   @id @default(uuid())
-  userBookingId     String
-  customerBookingId String
-  date              DateTime
-  status            String   @default("pending")
-  createdAt         DateTime @default(now())
-  customer          Customer @relation(fields: [customerBookingId], references: [customerId])
-  user              User     @relation(fields: [userBookingId], references: [userId])
+  bookingId        String        @id @default(uuid())
+  talentId         String
+  clientId         String
+  eventType        String
+  equipmentNeeded  String?       // What equipment will you need the performer to provide?
+  guestCount       Int?         // How many guests are you expecting at the event?
+  location         String        // Event Location/Address
+  eventDate        DateTime      // Event Date
+  eventTime        String?       // Event Time
+  duration         Int          // Duration in hours
+  budgetRange      String?      // Budget range selected
+  budgetAmount     Float?       // Specific budget amount if provided
+  serviceRequirements String[]   // Specific services needed
+  additionalComments String?    // Notes/Questions
+  status           BookingStatus @default(PENDING)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  talent           Talent        @relation(fields: [talentId], references: [talentId])
+  client           User          @relation(fields: [clientId], references: [userId])
+  customer         Customer?     @relation(fields: [customerId], references: [customerId])
+  customerId       String?
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
 }
 
 enum Role {
@@ -136,49 +182,105 @@ enum AuthProvider {
 }
 
 model Conversation {
-  id           String                @id @default(uuid())
+  id           String               @id @default(uuid())
   participants UserOnConversation[]
   messages     Message[]
-  updatedAt    DateTime              @updatedAt
-  createdAt    DateTime              @default(now())
+  updatedAt    DateTime             @updatedAt
+  createdAt    DateTime             @default(now())
 
   // Optional: add group chat features
-  name         String?               // group chat name (null for 1-on-1)
-  isGroup      Boolean               @default(false)
-  groupImage   String?               // optional image for group
+  name       String? // group chat name (null for 1-on-1)
+  isGroup    Boolean @default(false)
+  groupImage String? // optional image for group
 }
 
 model UserOnConversation {
-  id             String        @id @default(uuid())
+  id             String @id @default(uuid())
   userId         String
   conversationId String
 
-  user           User          @relation(fields: [userId], references: [userId])
-  conversation   Conversation  @relation(fields: [conversationId], references: [id])
+  user         User         @relation(fields: [userId], references: [userId])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
 
   @@unique([userId, conversationId])
 }
 
 model Message {
-  id              String               @id @default(uuid())
-  content         String
-  senderId        String
-  conversationId  String
-  createdAt       DateTime             @default(now())
+  id             String   @id @default(uuid())
+  content        String
+  senderId       String
+  conversationId String
+  createdAt      DateTime @default(now())
 
-  sender          User                 @relation("UserMessages", fields: [senderId], references: [userId])
-  conversation    Conversation         @relation(fields: [conversationId], references: [id])
-  readStatuses    MessageReadStatus[] // NEW: track read status per user
+  sender       User                @relation("UserMessages", fields: [senderId], references: [userId])
+  conversation Conversation        @relation(fields: [conversationId], references: [id])
+  readStatuses MessageReadStatus[] // NEW: track read status per user
 }
 
 model MessageReadStatus {
-  id         String    @id @default(uuid())
-  messageId  String
-  userId     String
-  readAt     DateTime  @default(now())
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
 
-  message    Message   @relation(fields: [messageId], references: [id])
-  user       User      @relation(fields: [userId], references: [userId])
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [userId])
 
   @@unique([messageId, userId]) // prevent duplicate read tracking
+}
+
+enum CalendarEventType {
+  AVAILABLE
+  UNAVAILABLE
+  BOOKED
+}
+
+model CalendarEvent {
+  id         String            @id @default(uuid())
+  talentId   String
+  type       CalendarEventType // "available" | "unavailable" | "booked" | etc.
+  title      String
+  start      DateTime
+  end        DateTime
+  color      String? // For frontend customization
+  clientName String? // Optional client name for private reference
+  isAllDay   Boolean           @default(false)
+  talent     Talent            @relation(fields: [talentId], references: [talentId])
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+model Category {
+  id        String           @id @default(uuid())
+  name      String
+  type      CategoryType
+  parentId  String? // For specifics, link to general category
+  parent    Category?        @relation("ParentCategory", fields: [parentId], references: [id])
+  children  Category[]       @relation("ParentCategory")
+  status    CategoryStatus   @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  talents   TalentCategory[]
+}
+
+enum CategoryType {
+  GENERAL
+  SPECIFIC
+}
+
+enum CategoryStatus {
+  ACTIVE
+  PENDING
+  REJECTED
+}
+
+model TalentCategory {
+  id         String   @id @default(uuid())
+  talent     Talent   @relation(fields: [talentId], references: [talentId])
+  talentId   String
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+  assignedAt DateTime @default(now())
+
+  @@unique([talentId, categoryId])
 }

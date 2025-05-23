@@ -1,25 +1,38 @@
-'use client';
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-import { useEffect } from 'react';
-import Loader from '@/components/custom/Loader';
+"use client";
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import Loader from "@/components/custom/Loader";
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      redirect('/dashboard');
+    if (status === "authenticated") {
+      setIsRedirecting(true);
+      const role = session?.user?.role;
+      const roleBasedRoute =
+        role === "ADMIN"
+          ? "/dashboard/admin"
+          : role === "TALENT"
+          ? "/dashboard/talent"
+          : "dashboard/customer";
+      const destination = redirect || roleBasedRoute;
+      router.push(destination);
     }
-  }, [status]);
+  }, [status, router, redirect, session]);
 
-  if (status === 'loading') {
+  if (status === "loading" || isRedirecting) {
     return <Loader />;
   }
 
-  return <div>{children}</div>;
+  return <div className="min-h-screen">{children}</div>;
 }

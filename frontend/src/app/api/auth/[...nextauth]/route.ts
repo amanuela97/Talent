@@ -179,7 +179,16 @@ export const authOptions: AuthOptions = {
 
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === 'update') {
+        token = session as JWT;
+        const updatedToken = {
+          ...token,
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        };
+        return updatedToken;
+      }
       // When signing in for the first time
       if (user) {
         const expiresAt = getTokenExpiration(user.accessToken);
@@ -206,8 +215,9 @@ export const authOptions: AuthOptions = {
     },
 
     async session({ token, session }) {
-      session.user = token.user;
+      session.user = token.user as User;
       session.accessToken = token.accessToken;
+      session.refreshToken = token.refreshToken;
 
       return session;
     },

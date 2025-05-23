@@ -18,6 +18,7 @@ export interface TokenResponse {
 export interface UserPayload {
   userId: string;
   username: string;
+  role: Role;
 }
 
 export type Role = 'TALENT' | 'CUSTOMER' | 'ADMIN';

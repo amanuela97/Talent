@@ -11,9 +11,7 @@ const axiosInstance = axios.create({
 // Request interceptor to add auth token to each request
 axiosInstance.interceptors.request.use(
   async (config) => {
-    console.log(config.url, 'Request URL');
     const session = await getSession();
-
     if (session?.accessToken) {
       config.headers.Authorization = `Bearer ${session?.accessToken}`;
     }

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import axios from '@/app/utils/axios';
+import axiosInstance from '@/app/utils/axios';
 import Image from 'next/image';
 import { signIn } from 'next-auth/react';
 import ClientOnly from '@/components/custom/ClientOnly';
@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import GoogleButton from 'react-google-button';
 import { BackButton } from '@/components/custom/BackButton';
+import { isAxiosError } from 'axios';
 
 export default function Register() {
   const [firstName, setFirstName] = useState('');
@@ -25,24 +26,35 @@ export default function Register() {
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const res = await axios.post(
-      '/api/auth/register',
-      {
-        name,
-        email,
-        password,
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
+    try {
+      const name = `${firstName} ${lastName}`;
+      const res = await axiosInstance.post(
+        '/auth/register',
+        {
+          name,
+          email,
+          password,
         },
-      }
-    );
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
-    if (res.status === 200) {
-      router.push('/login'); // Redirect to login after registration
-    } else {
-      setError(res.data.error);
+      if (res.status === 201) {
+        router.push('/login'); // Redirect to login after registration
+      }
+    } catch (error: unknown) {
+      const errorMessage = isAxiosError(error)
+        ? error.response?.data?.message || 'An error occurred'
+        : 'An unexpected error occurred';
+
+      console.error('Registration error:', errorMessage);
+      setError(
+        errorMessage ||
+          'An error occurred during registration. Please try again.'
+      );
     }
   };
 
