@@ -8,7 +8,7 @@ const talentCache = new Map<string, { talent: Talent; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 export const useTalentProfile = () => {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const userId = session?.user?.userId;
   const [talent, setTalent] = useState<Talent | null>(null);
   const [loading, setLoading] = useState(true);
@@ -214,7 +214,18 @@ export const useTalentProfile = () => {
       console.log("Upload response:", response);
 
       // Refresh talent data to get updated media
-      await refreshTalentData(true);
+      const updatedTalent = await refreshTalentData(true);
+
+      // If we uploaded a profile picture, update the session
+      if (profilePicture && updatedTalent?.talentProfilePicture) {
+        await updateSession({
+          ...session,
+          user: {
+            ...session?.user,
+            profilePicture: updatedTalent.talentProfilePicture,
+          },
+        });
+      }
     } catch (err) {
       console.error("Upload error:", err);
       setError(err instanceof Error ? err.message : "An error occurred");

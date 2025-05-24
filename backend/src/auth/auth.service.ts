@@ -28,7 +28,7 @@ export class AuthService {
     private configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly mailService: MailService, // Inject mail service
-  ) {}
+  ) { }
 
   async login(dto: LoginDto) {
     const user = await this.validateUser(dto);
@@ -65,8 +65,8 @@ export class AuthService {
         // User exists - now we need to check if they already have a Google account linked
         const hasGoogleAccount = (
           existingUser.accounts as
-            | { provider: string; providerAccountId: string }[]
-            | undefined
+          | { provider: string; providerAccountId: string }[]
+          | undefined
         )?.some(
           (acc) =>
             acc.provider === 'google' &&

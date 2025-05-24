@@ -78,7 +78,7 @@ export class TalentService {
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailService: MailService, // Inject MailService
-  ) {}
+  ) { }
   /**
    * Helper method to update talent profile data from DTO
    * @param updateTalentDto DTO with talent update data
@@ -1470,7 +1470,7 @@ export class TalentService {
           user.email,
           user.name,
           rejectionReason ||
-            'Your application did not meet our current requirements.',
+          'Your application did not meet our current requirements.',
         );
       }
     }
@@ -1504,12 +1504,25 @@ export class TalentService {
         talentId,
       );
 
-      // Update talent profile with new profile picture URL
-      return this.prisma.talent.update({
-        where: { talentId },
-        data: {
-          talentProfilePicture: uploadResult.url,
-        },
+      // Update both talent and user profile pictures in a transaction
+      return await this.prisma.$transaction(async (tx) => {
+        // Update talent profile picture
+        const updatedTalent = await tx.talent.update({
+          where: { talentId },
+          data: {
+            talentProfilePicture: uploadResult.url,
+          },
+        });
+
+        // Update user profile picture
+        await tx.user.update({
+          where: { userId: talentId },
+          data: {
+            profilePicture: uploadResult.url,
+          },
+        });
+
+        return updatedTalent;
       });
     } catch (error) {
       console.error('Error uploading profile picture:', error);

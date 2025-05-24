@@ -20,7 +20,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   /**
    * Create a new user
@@ -60,7 +60,8 @@ export class UserService {
           createdAt: true,
           updatedAt: true,
           role: true,
-          // Exclude passwordHash
+          profilePicture: true,
+          authProvider: true,
         },
       });
 
