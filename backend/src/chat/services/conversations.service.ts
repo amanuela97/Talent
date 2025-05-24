@@ -276,24 +276,36 @@ export class ConversationsService {
     userId: string,
     conversationId: string,
   ): Promise<boolean> {
-    const count = await this.prisma.safeQuery(() =>
-      this.prisma.userOnConversation.count({
-        where: {
-          userId,
-          conversationId,
-        },
-      }),
-    );
-    return count > 0;
+    try {
+      const userInConversation = await this.prisma.safeQuery(async () => {
+        return await this.prisma.userOnConversation.findUnique({
+          where: {
+            userId_conversationId: {
+              userId,
+              conversationId,
+            },
+          },
+        });
+      });
+
+      return !!userInConversation;
+    } catch (error) {
+      console.error('Error checking user in conversation:', error);
+      return false;
+    }
   }
 
   async touch(conversationId: string): Promise<void> {
-    await this.prisma.safeQuery(() =>
-      this.prisma.conversation.update({
-        where: { id: conversationId },
-        data: { updatedAt: new Date() },
-      }),
-    );
+    try {
+      await this.prisma.safeQuery(async () => {
+        await this.prisma.conversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        });
+      });
+    } catch (error) {
+      console.error('Error updating conversation timestamp:', error);
+    }
   }
 
   private isUserParticipant(

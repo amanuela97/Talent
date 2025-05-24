@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import axiosInstance from "@/app/utils/axios";
 import { Participant } from "./types";
 import useChatSocket from "@/hooks/useChatSocket";
 import Loader from "../Loader";
+import { Check } from "lucide-react";
 
 interface Message {
   id: string;
@@ -35,7 +36,9 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
   const { data: session } = useSession();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { isTyping, sendMessage, sendTyping } = useChatSocket({
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const processedMessagesRef = useRef<Set<string>>(new Set());
+  const { isTyping, sendMessage, sendTyping, socket } = useChatSocket({
     token: session?.accessToken,
     conversationId,
     userId: session?.user?.userId,
@@ -53,10 +56,85 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
     enabled: !!conversationId,
   });
 
+  // Handle message visibility
+  const handleMessageVisible = useCallback(
+    (messageId: string) => {
+      if (
+        !socket ||
+        !session?.user?.userId ||
+        processedMessagesRef.current.has(messageId)
+      ) {
+        return;
+      }
+
+      const message = conversation?.messages?.find(
+        (msg: Message) => msg.id === messageId
+      );
+      if (!message) return;
+
+      // Only mark as read if it's not our message and hasn't been read by us
+      if (
+        message.senderId !== session.user.userId &&
+        !message.readStatuses.some(
+          (status: { userId: string }) => status.userId === session.user.userId
+        )
+      ) {
+        processedMessagesRef.current.add(messageId);
+        socket.emit("markMessageRead", { messageId });
+        console.log("Marking message as read:", messageId);
+      }
+    },
+    [socket, session?.user?.userId, conversation?.messages]
+  );
+
+  // Set up intersection observer
+  useEffect(() => {
+    if (!conversation?.messages) return;
+
+    // Cleanup previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    // Create new observer
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const messageId = entry.target.getAttribute("data-message-id");
+            if (messageId) {
+              handleMessageVisible(messageId);
+            }
+          }
+        });
+      },
+      {
+        root: null, // Use viewport as root
+        rootMargin: "0px",
+        threshold: 0.5, // Message is considered visible when 50% is in view
+      }
+    );
+
+    // Observe all message elements
+    const messageElements = document.querySelectorAll("[data-message-id]");
+    messageElements.forEach((element) => {
+      observerRef.current?.observe(element);
+    });
+
+    return () => {
+      observerRef.current?.disconnect();
+    };
+  }, [conversation?.messages, handleMessageVisible]);
+
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation?.messages]);
+
+  // Reset processed messages when conversation changes
+  useEffect(() => {
+    processedMessagesRef.current = new Set();
+  }, [conversationId]);
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
@@ -75,6 +153,23 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
   const otherParticipant = conversation?.participants.find(
     (p: Participant) => p.userId !== session?.user?.userId
   );
+
+  const getMessageReadStatus = (msg: Message) => {
+    if (msg.senderId !== session?.user?.userId) return null;
+
+    const isRead = msg.readStatuses.some(
+      (status) => status.userId === otherParticipant?.userId
+    );
+
+    return (
+      <div className="flex items-center space-x-1">
+        <Check
+          className={`h-4 w-4 ${isRead ? "text-green-500" : "text-gray-400"}`}
+        />
+        {isRead && <Check className="h-4 w-4 -ml-2 text-green-500" />}
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -112,6 +207,7 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
           return (
             <div
               key={msg.id}
+              data-message-id={msg.id}
               className={`flex ${
                 isOwnMessage ? "justify-end" : "justify-start"
               }`}
@@ -131,8 +227,9 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
                   )}
                 </div>
                 <p>{msg.content}</p>
-                <div className="text-xs mt-1 opacity-70">
-                  {format(new Date(msg.createdAt), "p")}
+                <div className="flex items-center justify-end space-x-1 text-xs mt-1 opacity-70">
+                  <span>{format(new Date(msg.createdAt), "p")}</span>
+                  {getMessageReadStatus(msg)}
                 </div>
               </div>
             </div>

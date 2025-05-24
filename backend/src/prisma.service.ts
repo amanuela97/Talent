@@ -3,9 +3,6 @@ import {
   OnModuleInit,
   OnModuleDestroy,
   Logger,
-  NotFoundException,
-  BadRequestException,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Pool } from 'pg';
@@ -26,15 +23,12 @@ export class PrismaService
 
   constructor() {
     super({
-      // Only log errors, not warnings
-      log: ['error'],
+      log: ['error', 'warn'],
       datasources: {
         db: {
           url: process.env.DATABASE_URL,
         },
       },
-      // Connection pooling is managed internally by Prisma
-      // We'll handle reconnection and cleanup logic in our health check
     });
   }
 
@@ -100,43 +94,39 @@ export class PrismaService
 
   // Start a periodic connection health check
   private startConnectionHealthCheck() {
-    // Run every 2 minutes - increased frequency to reduce issues
-    this.connectionCheckInterval = setInterval(
-      () => {
-        // Use void operator to explicitly ignore the Promise result
-        void (async () => {
+    // Run every 30 seconds
+    this.connectionCheckInterval = setInterval(() => {
+      void (async () => {
+        try {
+          // Simple query to check if the connection is still alive
+          await this.$executeRawUnsafe('SELECT 1');
+
+          // Also clean up any stale transactions and prepared statements
+          await this.cleanupTransactions();
+
+          this.logger.debug('Database connection health check passed');
+        } catch (error) {
+          this.logger.error(
+            'Database connection health check failed',
+            error instanceof Error ? error.message : String(error),
+          );
+
+          // Try to reconnect
           try {
-            // Simple query to check if the connection is still alive
-            await this.$executeRawUnsafe('SELECT 1');
-
-            // Also clean up any stale transactions and prepared statements
-            await this.cleanupTransactions();
-
-            this.logger.debug('Database connection health check passed');
-          } catch (error) {
+            await this.$disconnect();
+            await this.$connect();
+            this.logger.log('Successfully reconnected to database');
+          } catch (reconnectError) {
             this.logger.error(
-              'Database connection health check failed',
-              error instanceof Error ? error.message : String(error),
+              'Failed to reconnect to database after health check failure',
+              reconnectError instanceof Error
+                ? reconnectError.stack
+                : String(reconnectError),
             );
-
-            // Try to reconnect
-            try {
-              await this.$disconnect();
-              await this.$connect();
-              this.logger.log('Successfully reconnected to database');
-            } catch (reconnectError) {
-              this.logger.error(
-                'Failed to reconnect to database after health check failure',
-                reconnectError instanceof Error
-                  ? reconnectError.stack
-                  : String(reconnectError),
-              );
-            }
           }
-        })();
-      },
-      2 * 60 * 1000,
-    ); // 2 minutes, more frequent to reduce issues
+        }
+      })();
+    }, 30 * 1000);
   }
 
   // New helper method to determine if we should deallocate
@@ -276,149 +266,34 @@ export class PrismaService
     }
   }
 
-  // Update the safeQuery method to suppress prepared statement error logs
-  async safeQuery<T>(queryFn: () => Promise<T>, retryCount = 0): Promise<T> {
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 500; // Start with a 500ms delay
+  // Helper method to safely execute queries with retries
+  async safeQuery<T>(queryFn: () => Promise<T>, retries = 3): Promise<T> {
+    let lastError: Error | null = null;
 
-    try {
-      // Deallocate prepared statements before each query attempt
-      // Use our safer method with reduced logging
-      await this.safeDeallocate();
-
-      // Now execute the actual query
-      return await queryFn();
-    } catch (error) {
-      // Handle retryable errors
-      const isRetryableError = this.isRetryableError(error);
-      const isPreparedError = this.isPreparedStatementError(error);
-
-      if (isRetryableError && retryCount < MAX_RETRIES) {
-        const delay = RETRY_DELAY_MS * Math.pow(2, retryCount); // Exponential backoff
-
-        // Only log non-prepared statement errors or critical failures
-        if (!isPreparedError || retryCount >= 2) {
-          // Log at different levels based on retry count
-          if (retryCount === 0) {
-            // First retry - don't log prepared statement errors at all
-            if (!isPreparedError) {
-              this.logger.debug(
-                `Database error detected, attempting recovery (retry ${retryCount + 1}/${MAX_RETRIES})`,
-                error instanceof Error ? error.message : String(error),
-              );
-            }
-          } else {
-            // Subsequent retries - only log at warn level if it's not a prepared statement error
-            if (!isPreparedError) {
-              this.logger.warn(
-                `Database error still occurring (retry ${retryCount + 1}/${MAX_RETRIES})`,
-                error instanceof Error ? error.message : String(error),
-              );
-            }
-          }
+    for (let i = 0; i < retries; i++) {
+      try {
+        // Try to deallocate statements before each query
+        await this.safeDeallocate();
+        return await queryFn();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (
+          error instanceof Error &&
+          (error.message.includes('prepared statement') ||
+            error.message.includes('connection'))
+        ) {
+          // If it's a connection or prepared statement error, try to reconnect
+          await this.$disconnect();
+          await this.$connect();
+          // Wait a bit before retrying
+          await new Promise((resolve) => setTimeout(resolve, 100 * (i + 1)));
+          continue;
         }
-
-        // Delay before retrying - use void to fix the Promise returned in void context error
-        await new Promise<void>((resolve) => {
-          setTimeout(() => resolve(), delay);
-        });
-
-        try {
-          // Try to clean up database state more aggressively
-          await this.$executeRawUnsafe('DEALLOCATE ALL').catch(() => {
-            // Silently catch errors from DEALLOCATE ALL
-          });
-
-          // Also try reconnecting to the database to reset the connection state
-          if (retryCount >= 1) {
-            // Only on second retry and beyond
-            if (!isPreparedError) {
-              this.logger.warn('Reconnecting to database before retry');
-            }
-            await this.$disconnect();
-            await this.$connect();
-          }
-
-          // Then retry the query with incremented retry count
-          return await this.safeQuery(queryFn, retryCount + 1);
-        } catch (cleanupError) {
-          // Only log if not a prepared statement error
-          if (!this.isPreparedStatementError(cleanupError)) {
-            this.logger.error(
-              `Failed during error recovery process: ${
-                cleanupError instanceof Error
-                  ? cleanupError.message
-                  : 'Unknown error'
-              }`,
-              cleanupError instanceof Error ? cleanupError.stack : undefined,
-            );
-          }
-
-          // If we can't reconnect but still have retries left
-          if (retryCount < MAX_RETRIES - 1) {
-            // Add additional delay to let connections reset - fix void return type
-            await new Promise<void>((resolve) => {
-              setTimeout(() => resolve(), delay * 2);
-            });
-            // Still try to retry the original query with a direct query approach
-            return await this.safeQuery(queryFn, retryCount + 1);
-          } else {
-            // We've tried everything, rethrow the original error
-            throw error;
-          }
-        }
-      }
-
-      // For prepared statement errors that couldn't be retried, just transform to a generic error
-      // to avoid exposing sensitive details
-      if (isPreparedError) {
-        throw new InternalServerErrorException('A database error occurred');
-      }
-
-      // Existing error handling logic for other errors
-      if (error instanceof Error) {
-        this.logger.error(`Prisma query error: ${error.message}`, error.stack);
-      } else {
-        this.logger.error('Prisma query error: Unknown error', error);
-      }
-
-      // Map Prisma errors to appropriate NestJS exceptions
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        // Handle not found error (P2025)
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Record not found');
-        }
-
-        // Handle unique constraint violations (P2002)
-        if (error.code === 'P2002') {
-          throw new BadRequestException(
-            `Unique constraint violation on field: ${(error.meta?.target as string[])?.join(', ') || 'unknown'}`,
-          );
-        }
-
-        // Handle foreign key constraint failures (P2003)
-        if (error.code === 'P2003') {
-          throw new BadRequestException(
-            `Foreign key constraint failed on field: ${String(error.meta?.field_name) || 'unknown'}`,
-          );
-        }
-      }
-
-      // Rethrow NotFoundException as it's likely intentional
-      if (error instanceof NotFoundException) {
         throw error;
       }
-
-      // Also rethrow BadRequestException as it's likely intentional
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-
-      // For all other errors, throw a generic 500 error
-      throw new InternalServerErrorException(
-        'An unexpected error occurred while accessing the database',
-      );
     }
+
+    throw lastError || new Error('Failed to execute query after retries');
   }
 
   // Helper method to determine if an error is retryable

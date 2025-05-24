@@ -12,6 +12,7 @@ export default function ConversationPage({
 }) {
   const { status } = useSession();
   const { conversationId } = use(params);
+
   if (status === "loading") {
     return <Loader />;
   }

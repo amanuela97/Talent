@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   WebSocketGateway,
@@ -29,12 +28,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Map to store active user connections
   private userSocketMap = new Map<string, string[]>();
+  // Map to store processed request IDs with timestamps
+  private processedRequests = new Map<string, number>();
+  // Cleanup interval for processed requests
+  private cleanupInterval: NodeJS.Timeout;
 
   constructor(
     private readonly messagesService: MessagesService,
     private readonly conversationsService: ConversationsService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) {
+    // Set up cleanup interval for processed requests
+    this.cleanupInterval = setInterval(
+      () => this.cleanupProcessedRequests(),
+      5000,
+    );
+  }
 
   async handleConnection(client: Socket) {
     try {
@@ -144,14 +153,36 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() createMessageDto: CreateMessageDto,
+    @MessageBody() createMessageDto: CreateMessageDto & { requestId?: string },
   ) {
     try {
-      const { content, conversationId } = createMessageDto;
-      console.log('Received sendMessage request:', {
+      const { content, conversationId, requestId } = createMessageDto;
+
+      // Generate a request ID if not provided
+      const messageRequestId =
+        requestId ||
+        `${client.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+      // Check if this request was already processed
+      const lastProcessedTime = this.processedRequests.get(messageRequestId);
+      if (lastProcessedTime && Date.now() - lastProcessedTime < 5000) {
+        // Increased window to 5 seconds
+        console.log('Duplicate request detected, skipping:', {
+          requestId: messageRequestId,
+          lastProcessedTime,
+          timeSinceLastProcess: Date.now() - lastProcessedTime,
+        });
+        return null;
+      }
+
+      // Mark this request as processed BEFORE creating the message
+      this.processedRequests.set(messageRequestId, Date.now());
+
+      console.log('Processing sendMessage request:', {
         content,
         conversationId,
         socketId: client.id,
+        requestId: messageRequestId,
       });
 
       const token = client.handshake.auth?.token;
@@ -181,7 +212,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.emit('error', {
           message: 'You are not part of this conversation',
         });
-        return;
+        return null;
+      }
+
+      // Check for duplicate message within last second
+      const recentMessage = await this.messagesService.findRecentMessage(
+        conversationId,
+        senderId,
+        content,
+        1000, // 1 second
+      );
+
+      if (recentMessage) {
+        console.log(
+          'Duplicate message detected, returning existing message:',
+          recentMessage.id,
+        );
+        // Update conversation timestamp
+        await this.conversationsService.touch(conversationId);
+        // Return existing message
+        return recentMessage;
       }
 
       // Create message
@@ -208,6 +258,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server
         .to(`conversation-${conversationId}`)
         .emit('newMessage', message);
+
       console.log('Message broadcasted to room:', {
         messageId: message.id,
         conversationId,
@@ -218,7 +269,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return message;
     } catch (error) {
       console.error('Error handling message:', error);
-      client.emit('error', { message: 'Failed to send message', error: error });
+      client.emit('error', {
+        message: 'Failed to send message',
+        error: error.message,
+      });
+      return null;
+    }
+  }
+
+  private cleanupProcessedRequests() {
+    const now = Date.now();
+    for (const [requestId, timestamp] of this.processedRequests.entries()) {
+      if (now - timestamp > 5000) {
+        // Remove requests older than 5 seconds
+        this.processedRequests.delete(requestId);
+      }
     }
   }
 
@@ -265,6 +330,56 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.to(`conversation-${conversationId}`).emit('stopTyping', userId);
     } catch (error) {
       console.error('Error handling typing indicator:', error);
+    }
+  }
+
+  @SubscribeMessage('markMessageRead')
+  async handleMarkMessageRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: string },
+  ) {
+    try {
+      const token = client.handshake.auth?.token;
+      if (!token) {
+        throw new Error('Token is undefined');
+      }
+
+      const decoded = this.jwtService.verify<UserPayload>(token, {
+        secret: process.env.JWT_SECRET,
+      });
+      const userId = decoded.userId;
+
+      // Mark message as read
+      const readStatus = await this.messagesService.markAsRead(
+        data.messageId,
+        userId,
+      );
+
+      if (readStatus) {
+        // Get the conversation ID for the message
+        const message = await this.messagesService.findOne(data.messageId);
+
+        // Broadcast read status to all participants
+        this.server
+          .to(`conversation-${message.conversationId}`)
+          .emit('messageRead', {
+            messageId: data.messageId,
+            userId,
+            readAt: readStatus.readAt,
+          });
+
+        console.log('Message marked as read:', {
+          messageId: data.messageId,
+          userId,
+          readAt: readStatus.readAt,
+        });
+      }
+    } catch (error) {
+      console.error('Error marking message as read:', error);
+      client.emit('error', {
+        message: 'Failed to mark message as read',
+        error: error.message,
+      });
     }
   }
 }
