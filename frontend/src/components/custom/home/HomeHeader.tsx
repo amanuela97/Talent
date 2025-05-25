@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { LogoutButton } from "../LogoutButton"
+import { useState } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,9 +34,35 @@ export default function HomeHeader() {
   const { data: session, status } = useSession()
   const user = session?.user;
 
-  console.log('Session:', session);
-  console.log('User:', user);
-  console.log('Profile Picture URL:', user?.profilePicture);
+  // Mock notifications data - replace with real data from API
+  const [notifications] = useState([
+    {
+      id: 1,
+      title: "New booking request",
+      message: "Sarah Johnson wants to book you for a wedding",
+      time: "2 minutes ago",
+      read: false,
+      type: "booking",
+    },
+    {
+      id: 2,
+      title: "Payment received",
+      message: "You received $500 for the corporate event",
+      time: "1 hour ago",
+      read: false,
+      type: "payment",
+    },
+    {
+      id: 3,
+      title: "New review",
+      message: "Mike Chen left you a 5-star review",
+      time: "3 hours ago",
+      read: true,
+      type: "review",
+    },
+  ])
+
+  const unreadCount = notifications.filter((n) => !n.read).length
 
   return (
     <header className="border-b">
@@ -63,10 +90,71 @@ export default function HomeHeader() {
           {status === "authenticated" ? (
             <>
               {/* Notification Icon */}
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-orange-500" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-medium">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <div className="flex items-center justify-between p-3 border-b">
+                    <h3 className="font-semibold text-sm">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <Button variant="ghost" size="sm" className="text-xs text-orange-500 hover:text-orange-600">
+                        Mark all as read
+                      </Button>
+                    )}
+                  </div>
+
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">No notifications</div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.map((notification) => (
+                        <DropdownMenuItem key={notification.id} className="p-0">
+                          <div
+                            className={`w-full p-3 hover:bg-gray-50 cursor-pointer border-l-4 ${!notification.read ? "border-l-orange-500 bg-orange-50/30" : "border-l-transparent"
+                              }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`mt-1 h-2 w-2 rounded-full ${!notification.read ? "bg-orange-500" : "bg-transparent"
+                                  }`}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className={`text-sm font-medium ${!notification.read ? "text-gray-900" : "text-gray-600"
+                                    }`}
+                                >
+                                  {notification.title}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
+                                <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  )}
+
+                  {notifications.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <div className="p-2">
+                        <Button variant="ghost" size="sm" className="w-full text-sm text-gray-600 hover:text-gray-800">
+                          View all notifications
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Favorites/Saved */}
               <Button variant="ghost" size="icon">

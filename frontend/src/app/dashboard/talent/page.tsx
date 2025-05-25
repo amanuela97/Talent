@@ -28,6 +28,7 @@ import { usePathname } from "next/navigation";
 import { useTalentStatus } from "@/hooks/useTalentStatus";
 import { useEffect, useState } from "react";
 import { LogoutButton } from "@/components/custom/LogoutButton";
+import { useTalentProfile } from "@/hooks/useTalentProfile";
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -35,7 +36,7 @@ export default function Dashboard() {
   const { isLoading, checkRedirect, isApproved } = useTalentStatus();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const user = session?.user;
-
+  const { talent, loading: talentLoading } = useTalentProfile();
   // Status verification effect
   useEffect(() => {
     // Only consider authorization complete after we've checked talent status
@@ -119,8 +120,12 @@ export default function Dashboard() {
                   Manage your performer profile and booking settings
                 </p>
               </div>
-              <Button className="mt-4 md:mt-0 bg-orange-500 hover:bg-orange-600">
-                <Edit className="mr-2 h-4 w-4" /> Edit Profile
+              <Button
+                asChild
+                className="mt-4 md:mt-0 bg-orange-500 hover:bg-orange-600">
+                <Link href="/talent/profile/edit">
+                  <Edit className="mr-2 h-4 w-4" /> Edit Profile
+                </Link>
               </Button>
             </div>
 
@@ -184,19 +189,23 @@ export default function Dashboard() {
                         <p className="text-sm font-medium text-gray-500">
                           Phone
                         </p>
-                        <p>+1 (555) 987-6543</p>
+                        <p>{talent?.phoneNumber}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-gray-500">
                           Location
                         </p>
-                        <p>Austin, TX</p>
+                        <p>{talent?.address}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-gray-500">
                           Performance Type
                         </p>
-                        <p>Jazz Guitarist</p>
+                        <ul className="list-disc list-inside">
+                          {talent?.services?.map((service, index) => (
+                            <li key={index}>{service}</li>
+                          ))}
+                        </ul>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-gray-500">
@@ -211,11 +220,7 @@ export default function Dashboard() {
                     <div className="space-y-4">
                       <h3 className="font-medium">Bio</h3>
                       <p className="text-gray-600">
-                        Professional jazz guitarist with over a decade of
-                        experience performing at weddings, corporate events, and
-                        private parties. Specializing in smooth jazz, bossa
-                        nova, and acoustic covers of popular songs. Available
-                        for solo performances or with my quartet.
+                        {talent?.bio}
                       </p>
                     </div>
                   </CardContent>
@@ -247,7 +252,7 @@ export default function Dashboard() {
                           <p className="text-sm font-medium text-gray-500">
                             Starting Price
                           </p>
-                          <p>$250/hour (Solo), $800/hour (Quartet)</p>
+                          <p>${talent?.hourlyRate}/hour</p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-gray-500">
