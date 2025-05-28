@@ -55,11 +55,6 @@ export class BookingsController {
     @Body() createBookingDto: CreateBookingDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    // Only customers and admins can create bookings
-    if (req.user.role === Role.TALENT) {
-      throw new ForbiddenException('Talents cannot create bookings');
-    }
-
     try {
       return await this.bookingsService.createBooking(
         createBookingDto,

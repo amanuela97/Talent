@@ -184,11 +184,14 @@ export class BookingsService {
   async getUserBookings(userId: string, role: Role, status?: BookingStatus) {
     const whereClause: Prisma.EventBookingWhereInput = {};
 
+    // For admin, get all bookings
     // For talents, get bookings where they are the talent
-    if (role === Role.TALENT) {
+    // For regular users, get bookings they've made
+    if (role === Role.ADMIN) {
+      // No user-specific filter for admin
+    } else if (role === Role.TALENT) {
       whereClause.talentId = userId;
     } else {
-      // For regular users, get bookings they've made
       whereClause.clientId = userId;
     }
 

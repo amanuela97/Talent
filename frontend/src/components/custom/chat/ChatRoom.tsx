@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
@@ -193,7 +193,9 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
                 {otherParticipant?.user?.name}
               </h2>
               {isTyping && (
-                <p className="text-sm text-gray-500">{`${otherParticipant?.user?.name?.toLowerCase()} is typing...`}</p>
+                <p className="text-sm text-gray-500">
+                  {otherParticipant?.user?.name} is typing...
+                </p>
               )}
             </div>
           </div>
@@ -226,9 +228,11 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
                     </span>
                   )}
                 </div>
-                <p>{msg.content}</p>
-                <div className="flex items-center justify-end space-x-1 text-xs mt-1 opacity-70">
-                  <span>{format(new Date(msg.createdAt), "p")}</span>
+                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                <div className="flex items-center justify-end space-x-2 text-xs mt-1 opacity-70">
+                  <span>
+                    {format(new Date(msg.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                  </span>
                   {getMessageReadStatus(msg)}
                 </div>
               </div>
@@ -241,8 +245,8 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
       {/* Message Input */}
       <Card className="rounded-none border-x-0 border-b-0">
         <CardContent className="p-4">
-          <div className="flex space-x-2">
-            <Input
+          <div className="flex flex-col space-y-2">
+            <Textarea
               value={message}
               onChange={(e) => {
                 setMessage(e.target.value);
@@ -255,9 +259,12 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
                 }
               }}
               placeholder="Type a message..."
-              className="flex-1"
+              className="min-h-[100px] resize-none"
+              rows={4}
             />
-            <Button onClick={handleSendMessage}>Send</Button>
+            <div className="flex justify-end">
+              <Button onClick={handleSendMessage}>Send</Button>
+            </div>
           </div>
         </CardContent>
       </Card>

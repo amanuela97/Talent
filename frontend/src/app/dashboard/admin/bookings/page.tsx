@@ -53,7 +53,7 @@ export default function AdminBookingsPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 h-screen px-10">
+    <div className="container mx-auto py-8 min-h-screen px-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">All Bookings</h1>
         <Select

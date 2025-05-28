@@ -1,20 +1,45 @@
 "use client";
 
-import { useSession } from "next-auth/react";
-import ConversationList from "@/components/custom/chat/ConversationList";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
 import Loader from "@/components/custom/Loader";
 
 export default function InboxPage() {
-  const { status } = useSession();
+  const router = useRouter();
 
-  if (status === "loading") {
+  const { data: conversations, isLoading } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/conversations");
+      return response.data;
+    },
+  });
+
+  useEffect(() => {
+    console.log(conversations);
+    if (conversations?.length > 0) {
+      router.replace(`/dashboard/inbox/${conversations[0].id}`);
+    }
+  }, [conversations, router]);
+
+  if (isLoading) {
     return <Loader />;
   }
 
-  return (
-    <div className="container mx-auto py-8 h-screen px-10">
-      <h1 className="text-3xl font-bold mb-8">Inbox</h1>
-      <ConversationList />
-    </div>
-  );
+  if (!conversations?.length) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">No conversations yet</h2>
+          <p className="text-muted-foreground">
+            Start a new conversation to begin chatting
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <Loader />;
 }
