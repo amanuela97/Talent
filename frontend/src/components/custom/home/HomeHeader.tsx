@@ -29,10 +29,64 @@ import {
   Wrench,
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Role } from "@/types/prismaTypes"
 
 export default function HomeHeader() {
   const { data: session, status } = useSession()
   const user = session?.user;
+  console.log(user)
+
+  // Menu items configuration
+  const menuItems = [
+    {
+      href: "/dashboard",
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+    },
+    {
+      href: "/dashboard/inbox",
+      icon: Inbox,
+      label: "Inbox",
+      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+    },
+    {
+      href: "/reviews",
+      icon: Star,
+      label: "Reviews",
+      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+    },
+    {
+      href: "/talent/profile/edit/overview",
+      icon: FileEdit,
+      label: "Edit Profile",
+      roles: ["TALENT"]
+    },
+    /* {
+      href: "/talents/@me",
+      icon: Eye,
+      label: "View Profile",
+      roles: ["TALENT"]
+    }, */
+    {
+      href: "/talent/profile/edit/calendar",
+      icon: Calendar,
+      label: "Calendar",
+      roles: ["TALENT"]
+    },
+    {
+      href: "/account",
+      icon: Settings,
+      label: "Account",
+      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+    },
+    {
+      href: "/help",
+      icon: HelpCircle,
+      label: "Help",
+      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+    }
+  ];
 
   // Mock notifications data - replace with real data from API
   const [notifications] = useState([
@@ -210,65 +264,22 @@ export default function HomeHeader() {
                   <DropdownMenuSeparator />
 
                   {/* User Menu Items */}
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard" className="flex items-center cursor-pointer">
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      <span>Dashboard</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/inbox" className="flex items-center cursor-pointer">
-                      <Inbox className="mr-2 h-4 w-4" />
-                      <span>Inbox</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/reviews" className="flex items-center cursor-pointer">
-                      <Star className="mr-2 h-4 w-4" />
-                      <span>Reviews</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/edit-promokit" className="flex items-center cursor-pointer">
-                      <FileEdit className="mr-2 h-4 w-4" />
-                      <span>Edit PromoKit</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/view-promokit" className="flex items-center cursor-pointer">
-                      <Eye className="mr-2 h-4 w-4" />
-                      <span>View PromoKit</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/calendar" className="flex items-center cursor-pointer">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>Calendar</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/tools" className="flex items-center cursor-pointer">
-                      <Wrench className="mr-2 h-4 w-4" />
-                      <span>Tools</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/account" className="flex items-center cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Account</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/help" className="flex items-center cursor-pointer">
-                      <HelpCircle className="mr-2 h-4 w-4" />
-                      <span>Help</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  {menuItems.map((item, index) => {
+                    // Only show items for the user's role
+                    if (!item.roles.includes(user?.role as Role)) return null;
+
+                    return (
+                      <DropdownMenuItem key={index} asChild>
+                        <Link href={item.href} className="flex items-center cursor-pointer">
+                          <item.icon className="mr-2 h-4 w-4" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <div className="flex items-center cursor-pointer text-red-500 hover:text-red-600">
-                      {/* <LogOut className="mr-2 h-4 w-4" /> */}
                       <LogoutButton />
                     </div>
                   </DropdownMenuItem>
