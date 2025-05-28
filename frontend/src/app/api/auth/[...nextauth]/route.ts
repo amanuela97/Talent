@@ -6,7 +6,9 @@ import { AuthOptions } from "next-auth";
 import axiosInstance from "@/app/utils/axios";
 import { isAxiosError } from "axios";
 import { jwtDecode } from "jwt-decode";
-import { User } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+
+type UserType = Prisma.UserGetPayload<{}>;
 
 function validateEnv() {
   const required = [
@@ -115,7 +117,7 @@ export const authOptions: AuthOptions = {
         const { username, password } = credentials;
         try {
           const res = await axiosInstance.post<{
-            user: User;
+            user: UserType;
             accessToken: string;
             refreshToken: string;
           }>(
@@ -128,7 +130,7 @@ export const authOptions: AuthOptions = {
               withCredentials: true, // Important: this ensures cookies are received
             }
           );
-
+          console.log(res.data);
           // Matches the structure from the backend response
           return {
             id: res.data.user.userId,
@@ -215,7 +217,7 @@ export const authOptions: AuthOptions = {
     },
 
     async session({ token, session }) {
-      session.user = token.user as User;
+      session.user = token.user as UserType;
       session.accessToken = token.accessToken;
       session.refreshToken = token.refreshToken;
 

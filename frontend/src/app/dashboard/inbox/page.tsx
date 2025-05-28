@@ -18,7 +18,6 @@ export default function InboxPage() {
   });
 
   useEffect(() => {
-    console.log(conversations);
     if (conversations?.length > 0) {
       router.replace(`/dashboard/inbox/${conversations[0].id}`);
     }

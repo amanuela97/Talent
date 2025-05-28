@@ -13,11 +13,15 @@ import { CategoryModule } from './category/category.module';
 import { ChatGateway } from './chat/gateways/chat.gateway';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
+import * as path from 'path';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // This makes it available in all modules automatically
+      isGlobal: true,
+      envFilePath: path.resolve(process.cwd(), '.env'),
+      cache: true,
+      expandVariables: true,
     }),
     UserModule,
     AuthModule,
@@ -33,7 +37,7 @@ import { ConfigModule } from '@nestjs/config';
   exports: [PrismaService],
 })
 export class AppModule implements OnModuleInit {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService) { }
 
   async onModuleInit() {
     // Clean up any stale connections when app starts
