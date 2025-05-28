@@ -1,26 +1,26 @@
-'use client';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import axiosInstance from '@/app/utils/axios';
-import Image from 'next/image';
-import { signIn } from 'next-auth/react';
-import ClientOnly from '@/components/custom/ClientOnly';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import GoogleButton from 'react-google-button';
-import { BackButton } from '@/components/custom/BackButton';
-import { isAxiosError } from 'axios';
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import axiosInstance from "@/app/utils/axios";
+import Image from "next/image";
+import { signIn } from "next-auth/react";
+import ClientOnly from "@/components/custom/ClientOnly";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import GoogleButton from "react-google-button";
+import { BackButton } from "@/components/custom/BackButton";
+import { isAxiosError } from "axios";
 
 export default function Register() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -29,7 +29,7 @@ export default function Register() {
     try {
       const name = `${firstName} ${lastName}`;
       const res = await axiosInstance.post(
-        '/auth/register',
+        "/auth/register",
         {
           name,
           email,
@@ -37,23 +37,23 @@ export default function Register() {
         },
         {
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
 
       if (res.status === 201) {
-        router.push('/login'); // Redirect to login after registration
+        router.push("/login"); // Redirect to login after registration
       }
     } catch (error: unknown) {
       const errorMessage = isAxiosError(error)
-        ? error.response?.data?.message || 'An error occurred'
-        : 'An unexpected error occurred';
+        ? error.response?.data?.message?.message || "An error occurred"
+        : "An unexpected error occurred";
 
-      console.error('Registration error:', errorMessage);
+      console.error("Registration error:", errorMessage);
       setError(
         errorMessage ||
-          'An error occurred during registration. Please try again.'
+          "An error occurred during registration. Please try again."
       );
     }
   };
@@ -137,14 +137,14 @@ export default function Register() {
                 <div className="flex items-start space-x-2">
                   <Checkbox id="terms" className="mt-1" />
                   <Label htmlFor="terms" className="text-sm font-normal">
-                    I agree to the{' '}
+                    I agree to the{" "}
                     <Link
                       href="#"
                       className="text-orange-500 hover:text-orange-600"
                     >
                       Terms of Service
-                    </Link>{' '}
-                    and{' '}
+                    </Link>{" "}
+                    and{" "}
                     <Link
                       href="#"
                       className="text-orange-500 hover:text-orange-600"
@@ -176,14 +176,14 @@ export default function Register() {
               <div className="flex justify-center">
                 <GoogleButton
                   onClick={() =>
-                    signIn('google', { callbackUrl: '/dashboard' })
+                    signIn("google", { callbackUrl: "/dashboard" })
                   }
                   className="w-auto"
                 />
               </div>
 
               <div className="text-center text-sm">
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <Link
                   href="/login"
                   className="text-orange-500 hover:text-orange-600 font-medium"

@@ -1,10 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
-import * as cookieParser from 'cookie-parser'; // Change this line
+import * as cookieParser from 'cookie-parser';
 import { PrismaService } from './prisma.service';
 import { AllExceptionsFilter } from './commont/filters/all-exceptions.filter';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load environment variables explicitly
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 async function bootstrap() {
   try {

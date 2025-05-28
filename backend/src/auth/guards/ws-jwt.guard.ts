@@ -33,7 +33,7 @@ export class WsJwtGuard implements CanActivate {
         throw new WsException('Unauthorized');
       }
 
-      const jwtSecretKey = this.configService.get<string>('jwtSecretKey');
+      const jwtSecretKey = this.configService.get<string>('JWT_SECRET');
 
       if (!jwtSecretKey) {
         throw new Error('JWT secret key is not defined');

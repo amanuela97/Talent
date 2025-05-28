@@ -17,7 +17,7 @@ import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
-  private readonly ACCESS_TOKEN_EXPIRES = '60s';
+  private readonly ACCESS_TOKEN_EXPIRES = '1h';
   private readonly REFRESH_TOKEN_EXPIRES = '7d';
   private readonly RESET_TOKEN_EXPIRES = 15 * 60 * 1000; // 15 minutes in milliseconds
   private readonly SALT_ROUNDS = 10;
@@ -321,7 +321,7 @@ export class AuthService {
 
   async refreshToken(refreshToken: string): Promise<TokenResponse> {
     const jwtRefreshTokenKey =
-      this.configService.get<string>('jwtRefreshTokenKey');
+      this.configService.get<string>('JWT_REFRESH_SECRET');
     const payload: UserPayload = this.jwtService.verify(refreshToken, {
       secret: jwtRefreshTokenKey,
     });
@@ -334,9 +334,9 @@ export class AuthService {
   }
 
   async generateTokens(payload: UserPayload): Promise<TokenResponse> {
-    const jwtSecretKey = this.configService.get<string>('jwtSecretKey');
+    const jwtSecretKey = this.configService.get<string>('JWT_SECRET');
     const jwtRefreshTokenKey =
-      this.configService.get<string>('jwtRefreshTokenKey');
+      this.configService.get<string>('JWT_REFRESH_SECRET');
 
     if (!jwtSecretKey || !jwtRefreshTokenKey) {
       throw new Error('JWT secret keys are not defined');

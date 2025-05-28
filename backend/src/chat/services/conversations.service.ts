@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NotFoundException,
@@ -48,99 +43,122 @@ export class ConversationsService {
     }
 
     // Create the conversation
-    return await this.prisma.$transaction(async (tx) => {
-      // Create conversation
-      const conversation = await tx.conversation.create({
-        data: {
-          isGroup: isGroup || false,
-          name: isGroup ? name : null,
-          groupImage: isGroup ? groupImage : null,
-        },
-      });
+    return await this.prisma.safeQuery(async () => {
+      return await this.prisma.$transaction(async (tx) => {
+        // Create conversation
+        const conversation = await tx.conversation.create({
+          data: {
+            isGroup: isGroup || false,
+            name: isGroup ? name : null,
+            groupImage: isGroup ? groupImage : null,
+          },
+        });
 
-      // Create participant associations
-      await tx.userOnConversation.createMany({
-        data: participantIds.map((userId) => ({
-          userId,
-          conversationId: conversation.id,
-        })),
-      });
+        // Create participant associations
+        await tx.userOnConversation.createMany({
+          data: participantIds.map((userId) => ({
+            userId,
+            conversationId: conversation.id,
+          })),
+        });
 
-      return conversation;
+        return conversation;
+      });
     });
   }
 
   async findAll(userId: string, skip = 0, take = 20): Promise<Conversation[]> {
-    return await this.prisma.conversation.findMany({
-      where: {
-        participants: {
-          some: {
-            userId,
-          },
-        },
-      },
-      include: {
-        participants: {
-          include: {
-            user: {
-              select: {
-                userId: true,
-                name: true,
-                profilePicture: true,
-              },
+    return await this.prisma.safeQuery(() =>
+      this.prisma.conversation.findMany({
+        where: {
+          participants: {
+            some: {
+              userId,
             },
           },
         },
-        messages: {
-          orderBy: {
-            createdAt: 'desc',
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  userId: true,
+                  name: true,
+                  profilePicture: true,
+                },
+              },
+            },
           },
-          take: 1,
-          include: {
-            readStatuses: true,
+          messages: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+            include: {
+              readStatuses: true,
+            },
           },
         },
-      },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      skip,
-      take,
-    });
+        orderBy: {
+          updatedAt: 'desc',
+        },
+        skip,
+        take,
+      }),
+    );
   }
 
   async findAllForUser(userId: string): Promise<{ id: string }[]> {
-    return await this.prisma.conversation.findMany({
-      where: {
-        participants: {
-          some: {
-            userId,
-          },
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-  }
-
-  async findOne(id: string, userId: string): Promise<Conversation> {
-    const conversation = await this.prisma.conversation.findUnique({
-      where: { id },
-      include: {
-        participants: {
-          include: {
-            user: {
-              select: {
-                userId: true,
-                name: true,
-                profilePicture: true,
-              },
+    return await this.prisma.safeQuery(() =>
+      this.prisma.conversation.findMany({
+        where: {
+          participants: {
+            some: {
+              userId,
             },
           },
         },
-      },
-    });
+        select: {
+          id: true,
+        },
+      }),
+    );
+  }
+
+  async findOne(id: string, userId: string): Promise<Conversation> {
+    const conversation = await this.prisma.safeQuery(() =>
+      this.prisma.conversation.findUnique({
+        where: { id },
+        include: {
+          participants: {
+            include: {
+              user: {
+                select: {
+                  userId: true,
+                  name: true,
+                  profilePicture: true,
+                },
+              },
+            },
+          },
+          messages: {
+            orderBy: {
+              createdAt: 'asc',
+            },
+            include: {
+              sender: {
+                select: {
+                  userId: true,
+                  name: true,
+                  profilePicture: true,
+                },
+              },
+              readStatuses: true,
+            },
+          },
+        },
+      }),
+    );
 
     if (!conversation) {
       throw new NotFoundException(`Conversation with ID ${id} not found`);
@@ -169,14 +187,16 @@ export class ConversationsService {
       throw new BadRequestException('Cannot update non-group conversations');
     }
 
-    return this.prisma.conversation.update({
-      where: { id },
-      data: {
-        name: updateConversationDto.name,
-        groupImage: updateConversationDto.groupImage,
-        isGroup: updateConversationDto.isGroup,
-      },
-    });
+    return await this.prisma.safeQuery(() =>
+      this.prisma.conversation.update({
+        where: { id },
+        data: {
+          name: updateConversationDto.name,
+          groupImage: updateConversationDto.groupImage,
+          isGroup: updateConversationDto.isGroup,
+        },
+      }),
+    );
   }
 
   async remove(id: string, userId: string): Promise<void> {
@@ -184,28 +204,33 @@ export class ConversationsService {
     await this.findOne(id, userId);
 
     // Delete the conversation and related data
-    await this.prisma.$transaction([
-      this.prisma.messageReadStatus.deleteMany({
-        where: {
-          message: {
+    await this.prisma.safeQuery(async () => {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.messageReadStatus.deleteMany({
+          where: {
+            message: {
+              conversationId: id,
+            },
+          },
+        });
+
+        await tx.message.deleteMany({
+          where: {
             conversationId: id,
           },
-        },
-      }),
-      this.prisma.message.deleteMany({
-        where: {
-          conversationId: id,
-        },
-      }),
-      this.prisma.userOnConversation.deleteMany({
-        where: {
-          conversationId: id,
-        },
-      }),
-      this.prisma.conversation.delete({
-        where: { id },
-      }),
-    ]);
+        });
+
+        await tx.userOnConversation.deleteMany({
+          where: {
+            conversationId: id,
+          },
+        });
+
+        await tx.conversation.delete({
+          where: { id },
+        });
+      });
+    });
   }
 
   async findOneToOneConversation(
@@ -213,21 +238,23 @@ export class ConversationsService {
     userId2: string,
   ): Promise<Conversation | null> {
     // Find conversations where both users are participants and it's not a group
-    const conversations = await this.prisma.conversation.findMany({
-      where: {
-        isGroup: false,
-        participants: {
-          every: {
-            userId: {
-              in: [userId1, userId2],
+    const conversations = await this.prisma.safeQuery(() =>
+      this.prisma.conversation.findMany({
+        where: {
+          isGroup: false,
+          participants: {
+            every: {
+              userId: {
+                in: [userId1, userId2],
+              },
             },
           },
         },
-      },
-      include: {
-        participants: true,
-      },
-    });
+        include: {
+          participants: true,
+        },
+      }),
+    );
 
     // Filter to find a conversation with exactly these two users
     for (const conversation of conversations) {
@@ -249,20 +276,36 @@ export class ConversationsService {
     userId: string,
     conversationId: string,
   ): Promise<boolean> {
-    const count = await this.prisma.userOnConversation.count({
-      where: {
-        userId,
-        conversationId,
-      },
-    });
-    return count > 0;
+    try {
+      const userInConversation = await this.prisma.safeQuery(async () => {
+        return await this.prisma.userOnConversation.findUnique({
+          where: {
+            userId_conversationId: {
+              userId,
+              conversationId,
+            },
+          },
+        });
+      });
+
+      return !!userInConversation;
+    } catch (error) {
+      console.error('Error checking user in conversation:', error);
+      return false;
+    }
   }
 
   async touch(conversationId: string): Promise<void> {
-    await this.prisma.conversation.update({
-      where: { id: conversationId },
-      data: { updatedAt: new Date() },
-    });
+    try {
+      await this.prisma.safeQuery(async () => {
+        await this.prisma.conversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        });
+      });
+    } catch (error) {
+      console.error('Error updating conversation timestamp:', error);
+    }
   }
 
   private isUserParticipant(

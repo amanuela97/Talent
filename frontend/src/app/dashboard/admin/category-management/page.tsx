@@ -134,7 +134,7 @@ export default function CategoryManagementPage() {
         );
       } else {
         const errorMessage = isAxiosError(error)
-          ? error.response?.data?.message
+          ? error.response?.data?.message?.message
           : error;
         console.error("Error fetching pending categories:", errorMessage);
         toast.error(

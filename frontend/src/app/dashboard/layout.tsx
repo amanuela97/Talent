@@ -6,6 +6,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { Role } from "@/types/prismaTypes";
 import Loader from "@/components/custom/Loader";
 
+// List of shared routes that don't require role-based access
+const SHARED_ROUTES = ["inbox"];
+
 export default function DashboardLayout({
   children,
 }: {
@@ -27,6 +30,11 @@ export default function DashboardLayout({
 
     const userRole = session?.user?.role as Role;
     const currentPath = pathname.split("/")[2]; // Get the role part from the path
+
+    // Allow access to shared routes
+    if (SHARED_ROUTES.includes(currentPath)) {
+      return;
+    }
 
     // If user is already on the correct path, don't redirect
     if (currentPath === userRole?.toLowerCase()) {
@@ -54,10 +62,15 @@ export default function DashboardLayout({
     return <Loader />;
   }
 
-  // Check if user is authenticated and has the correct role for the current path
+  // Check if user is authenticated
   if (status === "authenticated" && session?.user?.role) {
     const userRole = session.user.role.toLowerCase();
     const currentPath = pathname.split("/")[2];
+
+    // Allow access to shared routes
+    if (SHARED_ROUTES.includes(currentPath)) {
+      return <>{children}</>;
+    }
 
     // Only render children if the user's role matches the current path
     if (userRole === currentPath) {

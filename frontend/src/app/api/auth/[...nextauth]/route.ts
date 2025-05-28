@@ -1,18 +1,20 @@
-import GoogleProvider from 'next-auth/providers/google';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import { JWT } from 'next-auth/jwt';
-import NextAuth from 'next-auth/next';
-import { AuthOptions } from 'next-auth';
-import axiosInstance from '@/app/utils/axios';
-import { isAxiosError } from 'axios';
-import { jwtDecode } from 'jwt-decode';
-import { User } from '@prisma/client';
+import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { JWT } from "next-auth/jwt";
+import NextAuth from "next-auth/next";
+import { AuthOptions } from "next-auth";
+import axiosInstance from "@/app/utils/axios";
+import { isAxiosError } from "axios";
+import { jwtDecode } from "jwt-decode";
+import { Prisma } from "@prisma/client";
+
+type UserType = Prisma.UserGetPayload<{}>;
 
 function validateEnv() {
   const required = [
-    'GOOGLE_CLIENT_ID',
-    'GOOGLE_CLIENT_SECRET',
-    'NEXTAUTH_SECRET',
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "NEXTAUTH_SECRET",
   ];
   for (const var_name of required) {
     if (!process.env[var_name]) {
@@ -31,7 +33,7 @@ function getTokenExpiration(token: string): number {
     // exp is in seconds, convert to milliseconds for comparison with Date.now()
     return decoded.exp ? decoded.exp * 1000 : 0;
   } catch (error) {
-    console.error('Error decoding JWT:', error);
+    console.error("Error decoding JWT:", error);
     return 0; // Return 0 to force a refresh if we can't decode
   }
 }
@@ -42,7 +44,7 @@ async function refreshToken(token: JWT): Promise<JWT> {
       accessToken: string;
       refreshToken: string;
     }>(
-      '/auth/refreshToken',
+      "/auth/refreshToken",
       {
         refreshToken: token.refreshToken,
       },
@@ -65,10 +67,10 @@ async function refreshToken(token: JWT): Promise<JWT> {
   } catch (error) {
     if (isAxiosError(error)) {
       console.log(error);
-      console.log(error.response?.statusText || 'Refresh token failed');
+      console.log(error.response?.statusText || "Refresh token failed");
     } else {
       console.log(error);
-      console.log('An unknown error occurred during token refresh');
+      console.log("An unknown error occurred during token refresh");
     }
 
     // Return the previous token but marked as expired
@@ -76,7 +78,7 @@ async function refreshToken(token: JWT): Promise<JWT> {
     return {
       ...token,
       accessTokenExpires: 0, // Force expiration
-      error: 'RefreshTokenError',
+      error: "RefreshTokenError",
     };
   }
 }
@@ -85,26 +87,26 @@ export const authOptions: AuthOptions = {
   providers: [
     // ✅ Google OAuth Provider
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
       authorization: {
         params: {
-          prompt: 'consent',
-          access_type: 'offline',
-          response_type: 'code',
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
         },
       },
     }),
     // ✅ Email & Password Authentication
     CredentialsProvider({
-      name: 'Credentials',
+      name: "Credentials",
       credentials: {
         username: {
-          label: 'Email',
-          type: 'email',
-          placeholder: 'email@example.com',
+          label: "Email",
+          type: "email",
+          placeholder: "email@example.com",
         },
-        password: { label: 'Password', type: 'password' },
+        password: { label: "Password", type: "password" },
       },
 
       async authorize(credentials) {
@@ -115,11 +117,11 @@ export const authOptions: AuthOptions = {
         const { username, password } = credentials;
         try {
           const res = await axiosInstance.post<{
-            user: User;
+            user: UserType;
             accessToken: string;
             refreshToken: string;
           }>(
-            '/auth/login',
+            "/auth/login",
             {
               email: username,
               password,
@@ -128,7 +130,7 @@ export const authOptions: AuthOptions = {
               withCredentials: true, // Important: this ensures cookies are received
             }
           );
-
+          console.log(res.data);
           // Matches the structure from the backend response
           return {
             id: res.data.user.userId,
@@ -138,8 +140,8 @@ export const authOptions: AuthOptions = {
           };
         } catch (error: unknown) {
           const errorMessage = isAxiosError(error)
-            ? error.response?.data?.message
-            : 'Invalid email';
+            ? error.response?.data?.message?.message
+            : "Error Loging In";
           throw new Error(errorMessage);
         }
       },
@@ -148,10 +150,10 @@ export const authOptions: AuthOptions = {
 
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === 'google') {
+      if (account?.provider === "google") {
         try {
           const res = await axiosInstance.post(
-            '/auth/google-login',
+            "/auth/google-login",
             {
               name: user.name,
               email: user.email,
@@ -170,8 +172,8 @@ export const authOptions: AuthOptions = {
           user.refreshToken = res.data.refreshToken;
         } catch (error: unknown) {
           const errorMessage = isAxiosError(error)
-            ? error.response?.data?.message
-            : 'Invalid google email account';
+            ? error.response?.data?.message?.message
+            : "Invalid google email account";
           console.log(errorMessage);
           return false;
         }
@@ -180,7 +182,7 @@ export const authOptions: AuthOptions = {
       return true;
     },
     async jwt({ token, user, trigger, session }) {
-      if (trigger === 'update') {
+      if (trigger === "update") {
         token = session as JWT;
         const updatedToken = {
           ...token,
@@ -215,7 +217,7 @@ export const authOptions: AuthOptions = {
     },
 
     async session({ token, session }) {
-      session.user = token.user as User;
+      session.user = token.user as UserType;
       session.accessToken = token.accessToken;
       session.refreshToken = token.refreshToken;
 

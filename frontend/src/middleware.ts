@@ -1,24 +1,24 @@
-import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
 
 // Define public routes that don't require authentication
 const publicRoutes = [
-  '/',
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
-  '/verify-email',
-  '/join',
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/join",
 ];
 
 // Routes that should be accessible during talent onboarding
 const talentOnboardingRoutes = [
-  '/join',
-  '/join/verify',
-  '/join/pending',
-  '/verify-email',
+  "/join",
+  "/join/verify",
+  "/join/pending",
+  "/verify-email",
 ];
 
 // Routes that require approved talent status
@@ -55,8 +55,8 @@ export async function middleware(request: NextRequest) {
 
   // If the user is not authenticated and the route is not public, redirect to login
   if (!isAuthenticated && !isPublicRoute) {
-    const url = new URL('/login', request.url);
-    url.searchParams.set('callbackUrl', path);
+    const url = new URL("/login", request.url);
+    url.searchParams.set("callbackUrl", path);
     return NextResponse.redirect(url);
   }
 
@@ -66,12 +66,13 @@ export async function middleware(request: NextRequest) {
     isAuthenticated &&
     isPublicRoute &&
     !isTalentOnboardingRoute &&
-    path !== '/'
+    path !== "/"
   ) {
     const role = session?.user?.role;
 
     // Redirect based on role
-    const redirectPath = role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+    const redirectPath =
+      role === "ADMIN" ? "/dashboard/admin" : "/dashboard/talent";
     return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 
@@ -92,6 +93,6 @@ export const config = {
      * - public files (favicon.ico, etc.)
      * - images (some formats)
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|images|public).*)',
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|images|public).*)",
   ],
 };

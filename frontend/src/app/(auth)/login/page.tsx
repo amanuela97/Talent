@@ -1,33 +1,33 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import GoogleButton from 'react-google-button';
-import { BackButton } from '@/components/custom/BackButton';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import GoogleButton from "react-google-button";
+import { BackButton } from "@/components/custom/BackButton";
 
 export default function LoginPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get('redirect');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const redirect = searchParams.get("redirect");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === "authenticated") {
       const role = session?.user?.role;
       const roleBasedRoute =
-        role === 'ADMIN' ? '/admin/dashboard' : '/dashboard';
+        role === "ADMIN" ? "/dashboard/admin" : "/dashboard/talent";
       const destination = redirect ?? roleBasedRoute;
       router.push(destination);
     }
@@ -37,7 +37,7 @@ export default function LoginPage() {
     e: React.FormEvent<HTMLFormElement>
   ): Promise<void> => {
     e.preventDefault();
-    const res = await signIn('credentials', {
+    const res = await signIn("credentials", {
       username: email,
       password,
       redirect: false,
@@ -134,13 +134,13 @@ export default function LoginPage() {
 
             <div className="flex justify-center">
               <GoogleButton
-                onClick={() => signIn('google')}
+                onClick={() => signIn("google")}
                 className="w-auto"
               />
             </div>
 
             <div className="text-center text-sm">
-              Don&apos;t have an account?{' '}
+              Don&apos;t have an account?{" "}
               <Link
                 href="/register"
                 className="text-orange-500 hover:text-orange-600 font-medium"

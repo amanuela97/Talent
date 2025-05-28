@@ -21,7 +21,7 @@ export class JwtGuard implements CanActivate {
 
     if (!token) throw new UnauthorizedException();
 
-    const jwtSecretKey = this.configService.get<string>('jwtSecretKey');
+    const jwtSecretKey = this.configService.get<string>('JWT_SECRET');
 
     if (!jwtSecretKey) {
       throw new Error('JWT secret key is not defined');

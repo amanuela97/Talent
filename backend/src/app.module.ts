@@ -10,9 +10,19 @@ import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { CategoryModule } from './category/category.module';
+import { ChatGateway } from './chat/gateways/chat.gateway';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigModule } from '@nestjs/config';
+import * as path from 'path';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: path.resolve(process.cwd(), '.env'),
+      cache: true,
+      expandVariables: true,
+    }),
     UserModule,
     AuthModule,
     TalentModule,
@@ -23,11 +33,11 @@ import { CategoryModule } from './category/category.module';
     CategoryModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [AppService, PrismaService, ChatGateway, JwtService],
   exports: [PrismaService],
 })
 export class AppModule implements OnModuleInit {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService) { }
 
   async onModuleInit() {
     // Clean up any stale connections when app starts
