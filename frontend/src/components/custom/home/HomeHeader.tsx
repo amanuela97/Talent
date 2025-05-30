@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { LogoutButton } from "../LogoutButton"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,11 +30,94 @@ import {
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Role } from "@/types/prismaTypes"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import axiosInstance from "@/app/utils/axios"
+import { io, Socket } from "socket.io-client"
 
 export default function HomeHeader() {
   const { data: session, status } = useSession()
   const user = session?.user;
-  console.log(user)
+  const queryClient = useQueryClient();
+  const [socket, setSocket] = useState<Socket | null>(null);
+
+  // Initialize WebSocket connection
+  useEffect(() => {
+    if (!user?.userId) return;
+
+    const socketInstance = io(process.env.NEXT_PUBLIC_WS_URL || "http://localhost:4001", {
+      auth: { token: session?.accessToken },
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
+      timeout: 10000,
+    });
+
+    socketInstance.on("connect", () => {
+      console.log("Connected to chat server");
+    });
+
+    socketInstance.on("newMessage", () => {
+      // Invalidate conversations query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    });
+
+    socketInstance.on("messageRead", () => {
+      // Invalidate conversations query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    });
+
+    setSocket(socketInstance);
+
+    return () => {
+      socketInstance.disconnect();
+    };
+  }, [user?.userId, session?.accessToken, queryClient]);
+
+  // Fetch conversations and calculate unread messages
+  const { data: conversations } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: async () => {
+      const response = await axiosInstance.get("/conversations");
+      return response.data;
+    },
+    enabled: !!user?.userId,
+  });
+
+  // Calculate total unread messages across all conversations
+  const unreadMessages = conversations?.reduce((total: number, conversation: any) => {
+    const unreadInConversation = conversation.messages?.filter((message: any) => {
+      // Message is unread if it wasn't sent by the current user and hasn't been read by them
+      return message.senderId !== user?.userId &&
+        !message.readStatuses?.some((status: any) => status.userId === user?.userId);
+    }).length || 0;
+    return total + unreadInConversation;
+  }, 0) || 0;
+
+  // Function to mark all messages as read
+  const markAllMessagesAsRead = async () => {
+    if (!conversations || !user?.userId) return;
+
+    try {
+      // Get all unread messages across all conversations
+      const unreadMessages = conversations.flatMap((conversation: any) =>
+        conversation.messages?.filter((message: any) =>
+          message.senderId !== user.userId &&
+          !message.readStatuses?.some((status: any) => status.userId === user.userId)
+        ) || []
+      );
+
+      // Mark each message as read
+      await Promise.all(
+        unreadMessages.map((message: any) =>
+          axiosInstance.post(`/messages/${message.id}/read-status`)
+        )
+      );
+
+      // Invalidate conversations query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
 
   // Menu items configuration
   const menuItems = [
@@ -45,6 +128,7 @@ export default function HomeHeader() {
       roles: ["ADMIN", "TALENT", "CUSTOMER"]
     },
     {
+      /* add notification numbers for unread messaged */
       href: "/dashboard/inbox",
       icon: Inbox,
       label: "Inbox",
@@ -62,12 +146,7 @@ export default function HomeHeader() {
       label: "Edit Profile",
       roles: ["TALENT"]
     },
-    /* {
-      href: "/talents/@me",
-      icon: Eye,
-      label: "View Profile",
-      roles: ["TALENT"]
-    }, */
+    /* Dropdown for booking with numbers (pending) */
     {
       href: "/talent/profile/edit/calendar",
       icon: Calendar,
@@ -270,9 +349,26 @@ export default function HomeHeader() {
 
                     return (
                       <DropdownMenuItem key={index} asChild>
-                        <Link href={item.href} className="flex items-center cursor-pointer">
+                        <Link href={item.href} className="flex items-center cursor-pointer relative">
                           <item.icon className="mr-2 h-4 w-4" />
                           <span>{item.label}</span>
+                          {item.label === "Inbox" && unreadMessages > 0 && (
+                            <div className="flex items-center gap-2">
+                              <span className="absolute right-2 h-5 w-5 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-medium">
+                                {unreadMessages > 9 ? "9+" : unreadMessages}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  markAllMessagesAsRead();
+                                }}
+                                className="absolute right-8 text-xs text-orange-500 hover:text-orange-600"
+                              >
+                                Mark all as read
+                              </button>
+                            </div>
+                          )}
                         </Link>
                       </DropdownMenuItem>
                     );
