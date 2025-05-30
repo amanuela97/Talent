@@ -65,12 +65,37 @@ export default function HomeHeader() {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     });
 
+    // Add booking status change listener
+    socketInstance.on("bookingStatusChanged", () => {
+      // Invalidate pending bookings query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ["pending-bookings"] });
+    });
+
+    // Add new booking listener
+    socketInstance.on("newBooking", () => {
+      // Invalidate pending bookings query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ["pending-bookings"] });
+    });
+
     setSocket(socketInstance);
 
     return () => {
       socketInstance.disconnect();
     };
   }, [user?.userId, session?.accessToken, queryClient]);
+
+  // Fetch pending bookings count with polling
+  const { data: pendingBookings } = useQuery({
+    queryKey: ["pending-bookings"],
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/bookings/talent/${user?.userId}?status=PENDING`);
+      return response.data;
+    },
+    enabled: !!user?.userId && user?.role === "TALENT",
+    // Add polling to ensure we get updates even if WebSocket fails
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchIntervalInBackground: true, // Continue polling even when tab is not active
+  });
 
   // Fetch conversations and calculate unread messages
   const { data: conversations } = useQuery({
@@ -128,7 +153,6 @@ export default function HomeHeader() {
       roles: ["ADMIN", "TALENT", "CUSTOMER"]
     },
     {
-      /* add notification numbers for unread messaged */
       href: "/dashboard/inbox",
       icon: Inbox,
       label: "Inbox",
@@ -368,6 +392,11 @@ export default function HomeHeader() {
                                 Mark all as read
                               </button>
                             </div>
+                          )}
+                          {item.label === "Calendar" && pendingBookings?.length > 0 && (
+                            <span className="absolute right-2 h-5 w-5 rounded-full bg-orange-500 text-white text-xs flex items-center justify-center font-medium">
+                              {pendingBookings.length > 9 ? "9+" : pendingBookings.length}
+                            </span>
                           )}
                         </Link>
                       </DropdownMenuItem>
