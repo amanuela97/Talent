@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,37 +8,44 @@ import {
   DollarSign,
   Mail,
   Phone,
-  Instagram,
-  Twitter,
-  Facebook,
+  Link2,
   Heart,
   Share2,
+  MessageSquare,
 } from "lucide-react";
-import type { Talent } from "@/types/prismaTypes";
 import { ReviewsList } from "./reviews-list";
+import { TalentProfileProps } from "./TalentProfile";
+import { useState } from "react";
+import { ReviewModal } from "./review-modal";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import { getTalentByServiceName } from "@/lib/api/talents";
 
 interface AboutTalentProps {
-  talent: Talent;
+  talent: TalentProfileProps["talent"];
 }
 
-export function AboutTalent({ talent }: AboutTalentProps) {
+export function AboutTalent({ talent: initialTalent }: AboutTalentProps) {
+  const { data: session } = useSession();
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+  // Use React Query to keep talent data in sync
+  const { data: talent } = useQuery({
+    queryKey: ["talent", initialTalent.serviceName.replace(/ /g, "_")],
+    queryFn: () =>
+      getTalentByServiceName(initialTalent.serviceName.replace(/ /g, "_")),
+    initialData: initialTalent,
+    staleTime: 1000 * 60 * 5, // Consider data stale after 5 minutes
+  });
+
   // Get categories by type
   const generalCategories = talent.categories
-    ? talent.categories
-        .filter((tc) => tc.category.type === "GENERAL")
-        .map((tc) => tc.category)
+    ? talent.categories.filter((tc) => tc.type === "GENERAL").map((tc) => tc)
     : [];
 
   const specificCategories = talent.categories
-    ? talent.categories
-        .filter((tc) => tc.category.type === "SPECIFIC")
-        .map((tc) => tc.category)
+    ? talent.categories.filter((tc) => tc.type === "SPECIFIC").map((tc) => tc)
     : [];
-
-  // Fallback to legacy categories if needed
-  const hasLegacyCategories =
-    (!generalCategories.length || !specificCategories.length) &&
-    (talent.generalCategory || talent.specificCategory);
 
   return (
     <div>
@@ -66,25 +74,14 @@ export function AboutTalent({ talent }: AboutTalentProps) {
                 </Badge>
               ))}
 
-            {/* Fallback to legacy categories */}
-            {hasLegacyCategories && (
-              <>
-                {talent.generalCategory && (
-                  <Badge className="bg-orange-100 text-orange-600 border-orange-200">
-                    {talent.generalCategory}
-                  </Badge>
-                )}
-                {talent.specificCategory && (
-                  <Badge className="bg-blue-100 text-blue-600 border-blue-200">
-                    {talent.specificCategory}
-                  </Badge>
-                )}
-              </>
-            )}
-
             <div className="flex items-center">
               <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-              <span className="ml-1 font-medium">{talent.rating}</span>
+              <span className="ml-1 font-medium">
+                {talent.rating.toFixed(1)}
+              </span>
+              <span className="ml-2 text-gray-500">
+                ({talent.reviews?.length || 0} reviews)
+              </span>
             </div>
           </div>
         </div>
@@ -120,38 +117,42 @@ export function AboutTalent({ talent }: AboutTalentProps) {
       </div>
 
       <div className="flex gap-3">
-        {talent.socialLinks?.instagram && (
+        {Object.entries(talent.socialLinks || {}).map(([key, value]) => (
           <Link
-            href={talent.socialLinks.instagram}
+            key={key}
+            href={value}
             className="text-orange-500 hover:text-orange-700"
           >
-            <Instagram className="h-5 w-5" />
+            <span className="sr-only">{key}</span>
+            <span>{key}</span>
+            <Link2 className="h-5 w-5" />
           </Link>
-        )}
-        {talent.socialLinks?.twitter && (
-          <Link
-            href={talent.socialLinks.twitter}
-            className="text-orange-500 hover:text-orange-700"
-          >
-            <Twitter className="h-5 w-5" />
-          </Link>
-        )}
-        {talent.socialLinks?.facebook && (
-          <Link
-            href={talent.socialLinks.facebook}
-            className="text-orange-500 hover:text-orange-700"
-          >
-            <Facebook className="h-5 w-5" />
-          </Link>
-        )}
+        ))}
       </div>
 
       {/* Reviews section */}
-      {talent?.reviews && talent.reviews.length > 0 && (
-        <div className="mt-8">
-          <ReviewsList talent={talent} />
+      <div className="mt-8">
+        <div className="flex justify-end items-center mb-2 p-2">
+          <div className="flex items-center gap-4">
+            {session?.user && talent.talentId !== session.user.userId && (
+              <Button
+                onClick={() => setIsReviewModalOpen(true)}
+                size="sm"
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Leave Review
+              </Button>
+            )}
+          </div>
         </div>
-      )}
+        <ReviewsList talent={talent} />
+      </div>
+      <ReviewModal
+        talent={talent}
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+      />
     </div>
   );
 }

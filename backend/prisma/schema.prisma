@@ -3,6 +3,11 @@ generator client {
   output   = "../../frontend/node_modules/.prisma/client"
 }
 
+generator backendClient {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -30,6 +35,7 @@ model User {
   messages         Message[]            @relation("UserMessages")
   conversations    UserOnConversation[]
   readStatuses     MessageReadStatus[] // NEW: read receipts by this user
+  replies          Reply[]              // Add this line for replies relation
 }
 
 model Account {
@@ -136,7 +142,9 @@ model Reply {
   comment       String
   createdAt     DateTime @default(now())
   reviewReplyId String
+  userReplyId   String   // Add this field for the user relation
   review        Review   @relation(fields: [reviewReplyId], references: [reviewId])
+  user          User     @relation(fields: [userReplyId], references: [userId]) // Add relation to User
 }
 
 model EventBooking {

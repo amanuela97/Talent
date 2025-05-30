@@ -1,5 +1,3 @@
-import { TalentStatus } from '@prisma/client';
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
   Get,
@@ -41,14 +39,15 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthenticatedRequest } from 'src/backendTypes';
-import { isBoolean, isString } from 'class-validator';
+import { isBoolean } from 'class-validator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
+import { TalentStatus } from '@prisma/client';
 
 @ApiTags('Talents')
 @Controller('talents')
 export class TalentController {
-  constructor(private readonly talentService: TalentService) { }
+  constructor(private readonly talentService: TalentService) {}
 
   @Post('profile/:userId')
   @UseGuards(JwtGuard)
@@ -173,12 +172,22 @@ export class TalentController {
     }
 
     // Validate that categories are provided
-    if (!createTalentDto.generalCategories || createTalentDto.generalCategories.length === 0) {
-      throw new BadRequestException('At least one general category is required');
+    if (
+      !createTalentDto.generalCategories ||
+      createTalentDto.generalCategories.length === 0
+    ) {
+      throw new BadRequestException(
+        'At least one general category is required',
+      );
     }
 
-    if (!createTalentDto.specificCategories || createTalentDto.specificCategories.length === 0) {
-      throw new BadRequestException('At least one specific category is required');
+    if (
+      !createTalentDto.specificCategories ||
+      createTalentDto.specificCategories.length === 0
+    ) {
+      throw new BadRequestException(
+        'At least one specific category is required',
+      );
     }
 
     const talentData: CreateTalentDto = {
@@ -192,7 +201,7 @@ export class TalentController {
       phoneNumber: createTalentDto.phoneNumber,
       status:
         createTalentDto.status &&
-          Object.values(TalentStatus).includes(createTalentDto.status)
+        Object.values(TalentStatus).includes(createTalentDto.status)
           ? createTalentDto.status
           : undefined,
       isEmailVerified: isBoolean(createTalentDto.isEmailVerified)
@@ -752,6 +761,43 @@ export class TalentController {
       throw new BadRequestException('User information is missing');
     }
     return this.talentService.addReview(id, req.user.userId, rating, comment);
+  }
+
+  @Post('reviews/:reviewId/reply')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a reply to a review' })
+  @ApiParam({ name: 'reviewId', description: 'Review ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        comment: { type: 'string' },
+      },
+      required: ['comment'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Reply added successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid reply' })
+  @ApiResponse({ status: 404, description: 'Review not found' })
+  async addReplyToReview(
+    @Param('reviewId') reviewId: string,
+    @Body('comment') comment: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!comment || comment.trim().length === 0) {
+      throw new BadRequestException('Comment is required');
+    }
+
+    if (!req.user || !req.user.userId) {
+      throw new BadRequestException('User information is missing');
+    }
+
+    return this.talentService.addReplyToReview(
+      reviewId,
+      req.user.userId,
+      comment,
+    );
   }
 
   @Get(':id/media')

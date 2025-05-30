@@ -1,8 +1,8 @@
-import Image from 'next/image';
-import type { Talent } from '@/types/prismaTypes';
+import Image from "next/image";
+import { TalentProfileProps } from "./TalentProfile";
 
 interface TalentHeaderProps {
-  talent: Talent;
+  talent: TalentProfileProps["talent"];
 }
 
 export function TalentHeader({ talent }: TalentHeaderProps) {
@@ -12,7 +12,7 @@ export function TalentHeader({ talent }: TalentHeaderProps) {
         <div className="absolute -bottom-16 flex items-end">
           <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
             <Image
-              src={talent.talentProfilePicture || '/placeholder.svg'}
+              src={talent.talentProfilePicture || "/placeholder.svg"}
               alt={`${talent.firstName} ${talent.lastName}`}
               fill
               className="object-cover"

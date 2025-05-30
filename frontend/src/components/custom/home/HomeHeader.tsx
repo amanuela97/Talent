@@ -1,17 +1,17 @@
-"use client"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { useSession } from "next-auth/react"
-import { LogoutButton } from "../LogoutButton"
-import { useState } from "react"
+"use client";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { LogoutButton } from "../LogoutButton";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Bell,
   Calendar,
@@ -19,22 +19,18 @@ import {
   Heart,
   HelpCircle,
   Inbox,
-  LogOut,
   Menu,
   Settings,
   Star,
   FileEdit,
-  Eye,
   LayoutDashboard,
-  Wrench,
-} from "lucide-react"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Role } from "@/types/prismaTypes"
+} from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Role } from "@/types/prismaTypes";
 
 export default function HomeHeader() {
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession();
   const user = session?.user;
-  console.log(user)
 
   // Menu items configuration
   const menuItems = [
@@ -42,25 +38,25 @@ export default function HomeHeader() {
       href: "/dashboard",
       icon: LayoutDashboard,
       label: "Dashboard",
-      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+      roles: ["ADMIN", "TALENT", "CUSTOMER"],
     },
     {
       href: "/dashboard/inbox",
       icon: Inbox,
       label: "Inbox",
-      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+      roles: ["ADMIN", "TALENT", "CUSTOMER"],
     },
     {
       href: "/reviews",
       icon: Star,
       label: "Reviews",
-      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+      roles: ["ADMIN", "TALENT", "CUSTOMER"],
     },
     {
       href: "/talent/profile/edit/overview",
       icon: FileEdit,
       label: "Edit Profile",
-      roles: ["TALENT"]
+      roles: ["TALENT"],
     },
     /* {
       href: "/talents/@me",
@@ -72,20 +68,20 @@ export default function HomeHeader() {
       href: "/talent/profile/edit/calendar",
       icon: Calendar,
       label: "Calendar",
-      roles: ["TALENT"]
+      roles: ["TALENT"],
     },
     {
       href: "/account",
       icon: Settings,
       label: "Account",
-      roles: ["ADMIN", "TALENT", "CUSTOMER"]
+      roles: ["ADMIN", "TALENT", "CUSTOMER"],
     },
     {
       href: "/help",
       icon: HelpCircle,
       label: "Help",
-      roles: ["ADMIN", "TALENT", "CUSTOMER"]
-    }
+      roles: ["ADMIN", "TALENT", "CUSTOMER"],
+    },
   ];
 
   // Mock notifications data - replace with real data from API
@@ -114,28 +110,46 @@ export default function HomeHeader() {
       read: true,
       type: "review",
     },
-  ])
+  ]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <header className="border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-2">
           {/* Direct image reference with explicit width and height */}
-          <Image src="/assets/talent-logo.png" alt="Talent Logo" width={120} height={48} priority />
+          <Image
+            src="/assets/talent-logo.png"
+            alt="Talent Logo"
+            width={120}
+            height={48}
+            priority
+          />
         </Link>
         <nav className="hidden md:flex gap-6">
-          <Link href="/talents" className="text-sm font-medium hover:underline underline-offset-4">
+          <Link
+            href="/talents"
+            className="text-sm font-medium hover:underline underline-offset-4"
+          >
             Find Talent
           </Link>
-          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+          <Link
+            href="#"
+            className="text-sm font-medium hover:underline underline-offset-4"
+          >
             How It Works
           </Link>
-          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+          <Link
+            href="#"
+            className="text-sm font-medium hover:underline underline-offset-4"
+          >
             Pricing
           </Link>
-          <Link href="#" className="text-sm font-medium hover:underline underline-offset-4">
+          <Link
+            href="#"
+            className="text-sm font-medium hover:underline underline-offset-4"
+          >
             About Us
           </Link>
         </nav>
@@ -159,36 +173,55 @@ export default function HomeHeader() {
                   <div className="flex items-center justify-between p-3 border-b">
                     <h3 className="font-semibold text-sm">Notifications</h3>
                     {unreadCount > 0 && (
-                      <Button variant="ghost" size="sm" className="text-xs text-orange-500 hover:text-orange-600">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-orange-500 hover:text-orange-600"
+                      >
                         Mark all as read
                       </Button>
                     )}
                   </div>
 
                   {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500 text-sm">No notifications</div>
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      No notifications
+                    </div>
                   ) : (
                     <div className="max-h-96 overflow-y-auto">
                       {notifications.map((notification) => (
                         <DropdownMenuItem key={notification.id} className="p-0">
                           <div
-                            className={`w-full p-3 hover:bg-gray-50 cursor-pointer border-l-4 ${!notification.read ? "border-l-orange-500 bg-orange-50/30" : "border-l-transparent"
-                              }`}
+                            className={`w-full p-3 hover:bg-gray-50 cursor-pointer border-l-4 ${
+                              !notification.read
+                                ? "border-l-orange-500 bg-orange-50/30"
+                                : "border-l-transparent"
+                            }`}
                           >
                             <div className="flex items-start gap-3">
                               <div
-                                className={`mt-1 h-2 w-2 rounded-full ${!notification.read ? "bg-orange-500" : "bg-transparent"
-                                  }`}
+                                className={`mt-1 h-2 w-2 rounded-full ${
+                                  !notification.read
+                                    ? "bg-orange-500"
+                                    : "bg-transparent"
+                                }`}
                               />
                               <div className="flex-1 min-w-0">
                                 <p
-                                  className={`text-sm font-medium ${!notification.read ? "text-gray-900" : "text-gray-600"
-                                    }`}
+                                  className={`text-sm font-medium ${
+                                    !notification.read
+                                      ? "text-gray-900"
+                                      : "text-gray-600"
+                                  }`}
                                 >
                                   {notification.title}
                                 </p>
-                                <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
-                                <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {notification.time}
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -201,7 +234,11 @@ export default function HomeHeader() {
                     <>
                       <DropdownMenuSeparator />
                       <div className="p-2">
-                        <Button variant="ghost" size="sm" className="w-full text-sm text-gray-600 hover:text-gray-800">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full text-sm text-gray-600 hover:text-gray-800"
+                        >
                           View all notifications
                         </Button>
                       </div>
@@ -223,7 +260,10 @@ export default function HomeHeader() {
               {/* User Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2 pl-1 pr-0">
+                  <Button
+                    variant="ghost"
+                    className="flex items-center gap-2 pl-1 pr-0"
+                  >
                     <div className="relative h-8 w-8 rounded-full overflow-hidden">
                       <Image
                         src={user?.profilePicture || "/assets/placeholder.svg"}
@@ -232,22 +272,37 @@ export default function HomeHeader() {
                         height={32}
                         className="object-cover"
                         priority
-                        unoptimized={user?.profilePicture?.includes('cloudinary.com')}
+                        unoptimized={user?.profilePicture?.includes(
+                          "cloudinary.com"
+                        )}
                         onError={(e) => {
-                          console.error('Image failed to load:', user?.profilePicture);
+                          console.error(
+                            "Image failed to load:",
+                            user?.profilePicture
+                          );
                           const target = e.target as HTMLImageElement;
                           target.src = "/assets/placeholder.svg";
                         }}
                       />
                     </div>
-                    <span className="hidden sm:inline-block font-medium text-sm">{user?.name}</span>
+                    <span className="hidden sm:inline-block font-medium text-sm">
+                      {user?.name}
+                    </span>
                     <ChevronDown className="h-4 w-4 text-gray-500" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="flex items-center gap-2 p-2">
                     <div className="relative h-10 w-10 rounded-full overflow-hidden">
-                      <Image src={user?.profilePicture || "/placeholder.svg?height=40&width=40"} alt="User" fill className="object-cover" />
+                      <Image
+                        src={
+                          user?.profilePicture ||
+                          "/placeholder.svg?height=40&width=40"
+                        }
+                        alt="User"
+                        fill
+                        className="object-cover"
+                      />
                     </div>
                     <div className="flex flex-col">
                       <span className="font-medium text-sm">{user?.name}</span>
@@ -257,7 +312,9 @@ export default function HomeHeader() {
                         <Star className="h-3 w-3 text-gray-400" />
                         <Star className="h-3 w-3 text-gray-400" />
                         <Star className="h-3 w-3 text-gray-400" />
-                        <span className="text-xs text-gray-500 ml-1">No Reviews</span>
+                        <span className="text-xs text-gray-500 ml-1">
+                          No Reviews
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -270,7 +327,10 @@ export default function HomeHeader() {
 
                     return (
                       <DropdownMenuItem key={index} asChild>
-                        <Link href={item.href} className="flex items-center cursor-pointer">
+                        <Link
+                          href={item.href}
+                          className="flex items-center cursor-pointer"
+                        >
                           <item.icon className="mr-2 h-4 w-4" />
                           <span>{item.label}</span>
                         </Link>
@@ -309,24 +369,42 @@ export default function HomeHeader() {
             </SheetTrigger>
             <SheetContent side="right">
               <nav className="flex flex-col gap-4 mt-8">
-                <Link href="/talents" className="text-base font-medium hover:text-orange-500 transition-colors">
+                <Link
+                  href="/talents"
+                  className="text-base font-medium hover:text-orange-500 transition-colors"
+                >
                   Find Talent
                 </Link>
-                <Link href="#" className="text-base font-medium hover:text-orange-500 transition-colors">
+                <Link
+                  href="#"
+                  className="text-base font-medium hover:text-orange-500 transition-colors"
+                >
                   How It Works
                 </Link>
-                <Link href="#" className="text-base font-medium hover:text-orange-500 transition-colors">
+                <Link
+                  href="#"
+                  className="text-base font-medium hover:text-orange-500 transition-colors"
+                >
                   Pricing
                 </Link>
-                <Link href="#" className="text-base font-medium hover:text-orange-500 transition-colors">
+                <Link
+                  href="#"
+                  className="text-base font-medium hover:text-orange-500 transition-colors"
+                >
                   About Us
                 </Link>
                 {status !== "authenticated" && (
                   <>
-                    <Link href="/login" className="text-base font-medium hover:text-orange-500 transition-colors">
+                    <Link
+                      href="/login"
+                      className="text-base font-medium hover:text-orange-500 transition-colors"
+                    >
                       Log In
                     </Link>
-                    <Button asChild className="bg-orange-500 hover:bg-orange-600 mt-2 w-full">
+                    <Button
+                      asChild
+                      className="bg-orange-500 hover:bg-orange-600 mt-2 w-full"
+                    >
                       <Link href="/register">Sign Up</Link>
                     </Button>
                   </>
@@ -337,5 +415,5 @@ export default function HomeHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }

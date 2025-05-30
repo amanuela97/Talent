@@ -34,10 +34,6 @@ export default async function RootLayout({
 }>) {
   const session = await getServerSession(authOptions);
 
-  const userRole = null // Change to "user", "talent", or "admin" to test different states
-  const userName = "Lil Marco" // Example name
-  const userImage = "https://placehold.co/40x40/000000/FFFFFF/png" // Example image
-
   return (
     <html lang="en">
       <body
