@@ -33,12 +33,18 @@ export function MediaModal({
 }: MediaModalProps) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
 
-  // Reset active index when modal opens
+  // Sort media by creation date (newest first) and find the index of the most recent item
+  const sortedMedia = [...media].sort((a, b) =>
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  const mostRecentIndex = media.findIndex(item => item.id === sortedMedia[0]?.id);
+
+  // Reset active index when modal opens to show the most recent media
   useEffect(() => {
     if (isOpen) {
-      setActiveIndex(initialIndex);
+      setActiveIndex(0); // Always start at 0 since we're using sorted media
     }
-  }, [isOpen, initialIndex]);
+  }, [isOpen]);
 
   // Check if all media items are audio
   const isAudioGallery = media.every((item) => item.type === "AUDIO");
@@ -47,19 +53,19 @@ export function MediaModal({
   if (isAudioGallery) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="!fixed flex flex-col !w-[42rem] !h-[80vh] max-h-[800px] bg-black/95 p-0 [&>button]:hidden overflow-hidden">
+        <DialogContent className="!fixed flex flex-col !w-[42rem] !h-[80vh] max-h-[800px] bg-white/10 backdrop-blur-md p-0 [&>button]:hidden overflow-hidden">
           <DialogTitle asChild>
             <VisuallyHidden>{title}</VisuallyHidden>
           </DialogTitle>
 
           {/* Header */}
-          <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent w-full">
-            <h2 className="text-white text-xl font-semibold" aria-hidden="true">
+          <div className="flex justify-between items-center p-4 bg-gradient-to-b from-white/20 to-transparent w-full">
+            <h2 className="text-white/90 text-xl font-semibold" aria-hidden="true">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-white hover:text-gray-300 transition rounded-full bg-black/40 p-2"
+              className="text-white/90 hover:text-white transition rounded-full bg-white/10 hover:bg-white/20 p-2"
               aria-label="Close audio gallery"
             >
               <X className="h-6 w-6" />
@@ -70,15 +76,15 @@ export function MediaModal({
           <div className="flex-1 min-h-0">
             <ScrollArea className="h-full">
               <div className="space-y-4 p-4">
-                {media.map((item, index) => (
+                {sortedMedia.map((item, index) => (
                   <div
                     key={item.id}
-                    className="bg-white/10 rounded-lg p-4 space-y-2"
+                    className="bg-white/5 hover:bg-white/10 rounded-lg p-4 space-y-2 transition-colors"
                   >
-                    <div className="flex items-center gap-3 text-white mb-2">
+                    <div className="flex items-center gap-3 text-white/90 mb-2">
                       <Music className="h-5 w-5" />
                       <span className="font-medium">
-                        Track {index + 1} of {media.length}
+                        Track {index + 1} of {sortedMedia.length}
                       </span>
                     </div>
                     <audio
@@ -93,7 +99,7 @@ export function MediaModal({
                       Your browser does not support the audio element.
                     </audio>
                     {item.description && (
-                      <p className="text-white/80 text-sm" role="description">
+                      <p className="text-white/70 text-sm" role="description">
                         {item.description}
                       </p>
                     )}
@@ -110,19 +116,19 @@ export function MediaModal({
   // Render image/video swiper layout
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex flex-col justify-center items-center max-w-[90vw] w-full sm:max-w-6xl p-0 bg-black/95 [&>button]:hidden">
+      <DialogContent className="flex flex-col justify-center items-center max-w-[90vw] w-full sm:max-w-6xl p-0 bg-white/10 backdrop-blur-md [&>button]:hidden">
         <DialogTitle asChild>
           <VisuallyHidden>{title}</VisuallyHidden>
         </DialogTitle>
 
         {/* Header */}
-        <div className="flex justify-between items-center p-4 bg-gradient-to-b from-black/80 to-transparent min-w-full h-[10%]">
-          <h2 className="text-white text-xl font-semibold" aria-hidden="true">
+        <div className="flex justify-between items-center p-4 bg-gradient-to-b from-white/20 to-transparent min-w-full h-[10%]">
+          <h2 className="text-white/90 text-xl font-semibold" aria-hidden="true">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="text-white hover:text-gray-300 transition rounded-full bg-black/40 p-2"
+            className="text-white/90 hover:text-white transition rounded-full bg-white/10 hover:bg-white/20 p-2"
             aria-label="Close gallery"
           >
             <X className="h-6 w-6" />
@@ -135,18 +141,18 @@ export function MediaModal({
             modules={[Navigation, Pagination]}
             navigation
             pagination={{ clickable: true }}
-            initialSlide={initialIndex}
+            initialSlide={0}
             onSlideChange={(swiper) => setActiveIndex(swiper.activeIndex)}
             className="h-full"
             style={
               {
-                "--swiper-navigation-color": "#fff",
-                "--swiper-pagination-color": "#fff",
+                "--swiper-navigation-color": "rgba(255, 255, 255, 0.9)",
+                "--swiper-pagination-color": "rgba(255, 255, 255, 0.9)",
                 "--swiper-navigation-size": "24px",
               } as React.CSSProperties
             }
           >
-            {media.map((item) => (
+            {sortedMedia.map((item) => (
               <SwiperSlide key={item.id}>
                 <div className="flex items-center justify-center w-full h-full p-2">
                   {item.type === "IMAGE" && (
@@ -180,16 +186,16 @@ export function MediaModal({
 
         {/* Footer */}
         <div
-          className="p-4 bg-gradient-to-t from-black/80 to-transparent w-full"
+          className="p-4 bg-gradient-to-t from-white/20 to-transparent w-full"
           role="status"
           aria-live="polite"
         >
-          <p className="text-white text-sm">
-            {activeIndex + 1} of {media.length}
+          <p className="text-white/90 text-sm">
+            {activeIndex + 1} of {sortedMedia.length}
           </p>
-          {media[activeIndex]?.description && (
-            <p className="text-white/80 mt-1" role="description">
-              {media[activeIndex].description}
+          {sortedMedia[activeIndex]?.description && (
+            <p className="text-white/70 mt-1" role="description">
+              {sortedMedia[activeIndex].description}
             </p>
           )}
         </div>
