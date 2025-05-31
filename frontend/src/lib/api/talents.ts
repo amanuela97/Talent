@@ -54,3 +54,30 @@ export async function submitReply(reviewId: string, comment: string) {
   );
   return response.data;
 }
+
+export async function deleteReview(
+  reviewId: string
+): Promise<{ message: string }> {
+  const response = await axiosInstance.delete(`/talents/reviews/${reviewId}`);
+
+  return response.data;
+}
+
+export async function deleteReply(
+  replyId: string
+): Promise<{ message: string }> {
+  const response = await axiosInstance.delete(`/talents/replies/${replyId}`);
+
+  return response.data;
+}
+
+export async function updateReply(
+  replyId: string,
+  comment: string
+): Promise<{ message: string }> {
+  const response = await axiosInstance.patch(`/talents/replies/${replyId}`, {
+    comment,
+  });
+
+  return response.data;
+}

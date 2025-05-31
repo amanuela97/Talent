@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ChatInputProps {
   onSendMessage: (content: string) => Promise<void>;
@@ -6,7 +7,7 @@ interface ChatInputProps {
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onTyping }) => {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,7 +50,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onTyping }) => {
 
     try {
       await onSendMessage(content);
-      setMessage('');
+      setMessage("");
 
       // Stop typing indicator
       onTyping(false);
@@ -58,7 +59,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onTyping }) => {
         typingTimeoutRef.current = null;
       }
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
     } finally {
       setIsSubmitting(false);
       // Focus back on input
@@ -73,14 +74,14 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onTyping }) => {
     setMessage(e.target.value);
 
     // Reset height to calculate actual height
-    e.target.style.height = 'auto';
+    e.target.style.height = "auto";
     // Set new height based on scrollHeight (with max-height handled by CSS)
     e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`;
   };
 
   // Handle Ctrl+Enter or Cmd+Enter to submit
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       handleSubmit(e);
     }
   };
@@ -91,23 +92,24 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, onTyping }) => {
       className="p-3 bg-white border-t border-gray-300"
     >
       <div className="flex items-end">
-        <textarea
+        <Textarea
           ref={inputRef}
           value={message}
           onChange={handleTextareaChange}
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
-          className="flex-1 border border-gray-300 rounded-lg py-2 px-3 resize-none min-h-[40px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 border border-gray-300 rounded-lg py-2 px-3 resize-none min-h-[40px] max-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-500 break-all"
           disabled={isSubmitting}
           rows={1}
+          maxLength={1000}
         />
         <button
           type="submit"
           disabled={!message.trim() || isSubmitting}
           className={`ml-2 px-4 py-2 rounded-lg ${
             !message.trim() || isSubmitting
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-blue-500 text-white hover:bg-blue-600'
+              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+              : "bg-blue-500 text-white hover:bg-blue-600"
           }`}
         >
           {isSubmitting ? (

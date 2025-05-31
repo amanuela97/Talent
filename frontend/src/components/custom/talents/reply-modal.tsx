@@ -113,7 +113,7 @@ export function ReplyModal({
               }}
               rows={4}
               maxLength={1000}
-              className="resize-none min-h-[100px] whitespace-pre-wrap break-words"
+              className="resize-none min-h-[100px] whitespace-pre-wrap break-all"
             />
             <p className="text-xs text-gray-500 mt-1">
               {comment.length}/1000 characters

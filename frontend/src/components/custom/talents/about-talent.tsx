@@ -132,7 +132,8 @@ export function AboutTalent({ talent: initialTalent }: AboutTalentProps) {
 
       {/* Reviews section */}
       <div className="mt-8">
-        <div className="flex justify-end items-center mb-2 p-2">
+        <div className="flex justify-between items-center mb-2 p-2">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Reviews</h2>
           <div className="flex items-center gap-4">
             {session?.user && talent.talentId !== session.user.userId && (
               <Button
@@ -141,7 +142,11 @@ export function AboutTalent({ talent: initialTalent }: AboutTalentProps) {
                 className="bg-orange-500 hover:bg-orange-600"
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
-                Leave Review
+                {talent.reviews?.some(
+                  (review) => review.userRevieweId === session.user.userId
+                )
+                  ? "Change Review"
+                  : "Leave Review"}
               </Button>
             )}
           </div>

@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { StarIcon } from 'lucide-react';
-import { toast } from 'sonner';
-import axiosInstance from '@/app/utils/axios';
-import type { Talent } from '@/types/prismaTypes';
+import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { StarIcon } from "lucide-react";
+import { toast } from "sonner";
+import axiosInstance from "@/app/utils/axios";
+import type { Talent } from "@/types/prismaTypes";
 
 interface ReviewsFormProps {
   talent: Talent;
@@ -14,22 +14,22 @@ interface ReviewsFormProps {
 }
 
 export function ReviewsForm({ talent, onReviewAdded }: ReviewsFormProps) {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (rating === 0) {
-      toast.error('Please select a rating');
+      toast.error("Please select a rating");
       return;
     }
 
     if (!comment.trim()) {
-      toast.error('Please write a review');
+      toast.error("Please write a review");
       return;
     }
 
@@ -42,28 +42,28 @@ export function ReviewsForm({ talent, onReviewAdded }: ReviewsFormProps) {
 
       // Reset form
       setRating(0);
-      setComment('');
+      setComment("");
 
       // Notify parent component to refresh reviews
       onReviewAdded();
 
-      toast.success('Review submitted successfully!');
+      toast.success("Review submitted successfully!");
     } catch (error) {
-      console.error('Error submitting review:', error);
-      toast.error('Failed to submit review. Please try again.');
+      console.error("Error submitting review:", error);
+      toast.error("Failed to submit review. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (status === 'unauthenticated') {
+  if (status === "unauthenticated") {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-md p-4 text-amber-800 mb-6">
         <p className="text-sm">
-          Please{' '}
+          Please{" "}
           <a href="/login" className="font-medium underline">
             sign in
-          </a>{' '}
+          </a>{" "}
           to leave a review.
         </p>
       </div>
@@ -90,8 +90,8 @@ export function ReviewsForm({ talent, onReviewAdded }: ReviewsFormProps) {
                   size={24}
                   className={`${
                     star <= (hoverRating || rating)
-                      ? 'text-yellow-400 fill-yellow-400'
-                      : 'text-gray-300'
+                      ? "text-yellow-400 fill-yellow-400"
+                      : "text-gray-300"
                   }`}
                 />
               </button>
@@ -115,7 +115,7 @@ export function ReviewsForm({ talent, onReviewAdded }: ReviewsFormProps) {
           className="bg-orange-500 hover:bg-orange-600"
           disabled={isSubmitting}
         >
-          {isSubmitting ? 'Submitting...' : 'Submit Review'}
+          {isSubmitting ? "Submitting..." : "Submit Review"}
         </Button>
       </form>
     </div>

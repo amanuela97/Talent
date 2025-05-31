@@ -1795,4 +1795,112 @@ export class TalentService {
       }),
     );
   }
+
+  async deleteReview(reviewId: string, userId: string) {
+    // Check if review exists and belongs to the user
+    const review = await this.prisma.safeQuery(() =>
+      this.prisma.review.findUnique({
+        where: { reviewId },
+        include: {
+          talent: true,
+          replies: true,
+        },
+      }),
+    );
+
+    if (!review) {
+      throw new NotFoundException('Review not found');
+    }
+
+    if (review.userRevieweId !== userId) {
+      throw new ForbiddenException('You can only delete your own reviews');
+    }
+
+    // Delete the review and update talent rating
+    await this.prisma.$transaction(async (tx) => {
+      // First delete all associated replies
+      if (review.replies.length > 0) {
+        await tx.reply.deleteMany({
+          where: { reviewReplyId: reviewId },
+        });
+      }
+
+      // Then delete the review
+      await tx.review.delete({
+        where: { reviewId },
+      });
+
+      // Recalculate average rating
+      const reviews = await tx.review.findMany({
+        where: { talentReviewId: review.talentReviewId },
+        select: { rating: true },
+      });
+
+      const newRating =
+        reviews.length > 0
+          ? reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length
+          : 0;
+
+      // Update talent rating
+      await tx.talent.update({
+        where: { talentId: review.talentReviewId },
+        data: { rating: newRating },
+      });
+    });
+
+    return { message: 'Review deleted successfully' };
+  }
+
+  async deleteReply(replyId: string, userId: string) {
+    // Check if reply exists and belongs to the user
+    const reply = await this.prisma.safeQuery(() =>
+      this.prisma.reply.findUnique({
+        where: { replyId },
+      }),
+    );
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.userReplyId !== userId) {
+      throw new ForbiddenException('You can only delete your own replies');
+    }
+
+    // Delete the reply
+    await this.prisma.safeQuery(() =>
+      this.prisma.reply.delete({
+        where: { replyId },
+      }),
+    );
+
+    return { message: 'Reply deleted successfully' };
+  }
+
+  async updateReply(replyId: string, userId: string, comment: string) {
+    // Check if reply exists and belongs to the user
+    const reply = await this.prisma.safeQuery(() =>
+      this.prisma.reply.findUnique({
+        where: { replyId },
+      }),
+    );
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.userReplyId !== userId) {
+      throw new ForbiddenException('You can only edit your own replies');
+    }
+
+    // Update the reply
+    await this.prisma.safeQuery(() =>
+      this.prisma.reply.update({
+        where: { replyId },
+        data: { comment },
+      }),
+    );
+
+    return { message: 'Reply updated successfully' };
+  }
 }

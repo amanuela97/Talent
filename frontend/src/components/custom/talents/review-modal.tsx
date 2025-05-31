@@ -57,6 +57,13 @@ export function ReviewModal({ talent, isOpen, onClose }: ReviewModalProps) {
         }
       );
 
+      // Also invalidate the user's talent data if they are a talent
+      if (session?.user?.userId && session?.user?.role === "TALENT") {
+        queryClient.invalidateQueries({
+          queryKey: ["talent", session.user.userId],
+        });
+      }
+
       toast.success("Your review has been submitted successfully!");
       handleClose();
     },
@@ -155,7 +162,7 @@ export function ReviewModal({ talent, isOpen, onClose }: ReviewModalProps) {
               }}
               rows={6}
               maxLength={1000}
-              className="resize-none min-h-[150px] whitespace-pre-wrap break-words"
+              className="resize-none min-h-[150px] whitespace-pre-wrap break-all"
             />
             <p className="text-xs text-gray-500 mt-1">
               {comment.length}/1000 characters

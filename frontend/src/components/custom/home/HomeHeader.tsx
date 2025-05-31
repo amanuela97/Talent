@@ -24,13 +24,32 @@ import {
   Star,
   FileEdit,
   LayoutDashboard,
+  Loader2,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Role } from "@/types/prismaTypes";
+import { RatingDisplay } from "../talents/RatingDisplay";
+import { useQuery } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
 
 export default function HomeHeader() {
   const { data: session, status } = useSession();
   const user = session?.user;
+
+  // Fetch talent data if user is a talent
+  const { data: talentData, isLoading: isTalentLoading } = useQuery({
+    queryKey: ["talent", user?.userId],
+    queryFn: async () => {
+      const response = await axiosInstance.get(`/talents/user/${user?.userId}`);
+      if (response.status !== 200) {
+        throw new Error(
+          response?.data?.message || "Failed to fetch talent data"
+        );
+      }
+      return response.data;
+    },
+    enabled: !!user?.userId && user?.role === "TALENT",
+  });
 
   // Menu items configuration
   const menuItems = [
@@ -306,16 +325,25 @@ export default function HomeHeader() {
                     </div>
                     <div className="flex flex-col">
                       <span className="font-medium text-sm">{user?.name}</span>
-                      <div className="flex items-center">
-                        <Star className="h-3 w-3 text-gray-400" />
-                        <Star className="h-3 w-3 text-gray-400" />
-                        <Star className="h-3 w-3 text-gray-400" />
-                        <Star className="h-3 w-3 text-gray-400" />
-                        <Star className="h-3 w-3 text-gray-400" />
-                        <span className="text-xs text-gray-500 ml-1">
-                          No Reviews
-                        </span>
-                      </div>
+                      {user?.role === "TALENT" && (
+                        <>
+                          {isTalentLoading ? (
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span>Loading rating...</span>
+                            </div>
+                          ) : (
+                            talentData && (
+                              <RatingDisplay
+                                rating={Number(talentData.rating)}
+                                reviewCount={talentData.reviews?.length ?? 0}
+                                size="sm"
+                                showCount={true}
+                              />
+                            )
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                   <DropdownMenuSeparator />
