@@ -1,13 +1,13 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MediaGallery } from './media-gallery';
-import { ServicesList } from './services-list';
-import { AvailabilitySchedule } from './availability-schedule';
-import { AboutTalent } from './about-talent';
-import type { Talent } from '@/types/prismaTypes';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MediaGallery } from "./media-gallery";
+import { ServicesList } from "./services-list";
+import { AvailabilitySchedule } from "./availability-schedule";
+import { AboutTalent } from "./about-talent";
+import { TalentProfileProps } from "./TalentProfile";
 
-interface TalentTabsProps {
-  talent: Talent;
-}
+type TalentTabsProps = {
+  talent: TalentProfileProps["talent"];
+};
 
 export function TalentTabs({ talent }: TalentTabsProps) {
   return (
@@ -18,9 +18,8 @@ export function TalentTabs({ talent }: TalentTabsProps) {
         <TabsTrigger value="availability">Availability</TabsTrigger>
         <TabsTrigger value="media">Media</TabsTrigger>
       </TabsList>
-
       <TabsContent value="media" className="bg-white rounded-lg shadow-md p-6">
-        <MediaGallery media={talent.media || []} />
+        <MediaGallery media={talent.media} />
       </TabsContent>
 
       <TabsContent

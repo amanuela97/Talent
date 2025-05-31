@@ -1,6 +1,6 @@
-import React from 'react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import React from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   PartyPopper,
@@ -9,8 +9,8 @@ import {
   Palette,
   Search,
   Calendar,
-} from 'lucide-react';
-import FadeCarousel from '../FadeCarousel';
+} from "lucide-react";
+import FadeCarousel from "../FadeCarousel";
 
 const HomeMain = () => {
   return (

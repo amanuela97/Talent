@@ -1,8 +1,7 @@
-import { Badge } from '@/components/ui/badge';
-import type { Talent } from '@/types/prismaTypes';
-
+import { Badge } from "@/components/ui/badge";
+import { TalentProfileProps } from "./TalentProfile";
 interface ServicesListProps {
-  talent: Talent;
+  talent: TalentProfileProps["talent"];
 }
 
 export function ServicesList({ talent }: ServicesListProps) {

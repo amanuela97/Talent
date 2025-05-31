@@ -1,9 +1,9 @@
-import { Button } from '@/components/ui/button';
-import { Calendar, Clock } from 'lucide-react';
-import type { Talent } from '@/types/prismaTypes';
+import { Button } from "@/components/ui/button";
+import { Calendar, Clock } from "lucide-react";
+import { TalentProfileProps } from "./TalentProfile";
 
 interface AvailabilityScheduleProps {
-  talent: Talent;
+  talent: TalentProfileProps["talent"];
 }
 
 export function AvailabilitySchedule({ talent }: AvailabilityScheduleProps) {
@@ -17,7 +17,7 @@ export function AvailabilitySchedule({ talent }: AvailabilityScheduleProps) {
             <div>
               <div className="font-medium capitalize">{day}</div>
               <div className="text-sm text-gray-600">
-                {Array.isArray(times) ? times.join(', ') : times}
+                {Array.isArray(times) ? times.join(", ") : times}
               </div>
             </div>
           </div>

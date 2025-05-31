@@ -1,8 +1,8 @@
-import { Button } from '@/components/ui/button';
-import type { Talent } from '@/types/prismaTypes';
+import { Button } from "@/components/ui/button";
+import { TalentProfileProps } from "./TalentProfile";
 
 interface SupportCardProps {
-  talent: Talent;
+  talent: TalentProfileProps["talent"];
 }
 
 export function SupportCard({ talent }: SupportCardProps) {

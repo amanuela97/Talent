@@ -1,5 +1,3 @@
-import { TalentStatus } from '@prisma/client';
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Controller,
   Get,
@@ -19,6 +17,9 @@ import {
   ParseUUIDPipe,
   UploadedFiles,
   Req,
+  ForbiddenException,
+  NotFoundException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import {
@@ -41,14 +42,15 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthenticatedRequest } from 'src/backendTypes';
-import { isBoolean, isString } from 'class-validator';
+import { isBoolean } from 'class-validator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
+import { TalentStatus } from '@prisma/client';
 
 @ApiTags('Talents')
 @Controller('talents')
 export class TalentController {
-  constructor(private readonly talentService: TalentService) { }
+  constructor(private readonly talentService: TalentService) {}
 
   @Post('profile/:userId')
   @UseGuards(JwtGuard)
@@ -173,12 +175,22 @@ export class TalentController {
     }
 
     // Validate that categories are provided
-    if (!createTalentDto.generalCategories || createTalentDto.generalCategories.length === 0) {
-      throw new BadRequestException('At least one general category is required');
+    if (
+      !createTalentDto.generalCategories ||
+      createTalentDto.generalCategories.length === 0
+    ) {
+      throw new BadRequestException(
+        'At least one general category is required',
+      );
     }
 
-    if (!createTalentDto.specificCategories || createTalentDto.specificCategories.length === 0) {
-      throw new BadRequestException('At least one specific category is required');
+    if (
+      !createTalentDto.specificCategories ||
+      createTalentDto.specificCategories.length === 0
+    ) {
+      throw new BadRequestException(
+        'At least one specific category is required',
+      );
     }
 
     const talentData: CreateTalentDto = {
@@ -192,7 +204,7 @@ export class TalentController {
       phoneNumber: createTalentDto.phoneNumber,
       status:
         createTalentDto.status &&
-          Object.values(TalentStatus).includes(createTalentDto.status)
+        Object.values(TalentStatus).includes(createTalentDto.status)
           ? createTalentDto.status
           : undefined,
       isEmailVerified: isBoolean(createTalentDto.isEmailVerified)
@@ -754,6 +766,43 @@ export class TalentController {
     return this.talentService.addReview(id, req.user.userId, rating, comment);
   }
 
+  @Post('reviews/:reviewId/reply')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a reply to a review' })
+  @ApiParam({ name: 'reviewId', description: 'Review ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        comment: { type: 'string' },
+      },
+      required: ['comment'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Reply added successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid reply' })
+  @ApiResponse({ status: 404, description: 'Review not found' })
+  async addReplyToReview(
+    @Param('reviewId') reviewId: string,
+    @Body('comment') comment: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!comment || comment.trim().length === 0) {
+      throw new BadRequestException('Comment is required');
+    }
+
+    if (!req.user || !req.user.userId) {
+      throw new BadRequestException('User information is missing');
+    }
+
+    return this.talentService.addReplyToReview(
+      reviewId,
+      req.user.userId,
+      comment,
+    );
+  }
+
   @Get(':id/media')
   @ApiOperation({ summary: 'Get all media for a talent profile' })
   @ApiParam({ name: 'id', description: 'Talent ID' })
@@ -887,5 +936,91 @@ export class TalentController {
     @Body('rejectionReason') rejectionReason?: string,
   ) {
     return this.talentService.updateStatus(id, status, rejectionReason);
+  }
+
+  @Delete('reviews/:reviewId')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a review' })
+  @ApiParam({ name: 'reviewId', description: 'Review ID' })
+  @ApiResponse({ status: 200, description: 'Review deleted successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not review owner' })
+  @ApiResponse({ status: 404, description: 'Review not found' })
+  async deleteReview(
+    @Param('reviewId') reviewId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user || !req.user.userId) {
+      throw new BadRequestException('User information is missing');
+    }
+
+    return this.talentService.deleteReview(reviewId, req.user.userId);
+  }
+
+  @Delete('replies/:replyId')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a reply' })
+  @ApiParam({ name: 'replyId', description: 'Reply ID' })
+  @ApiResponse({ status: 200, description: 'Reply deleted successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not reply owner' })
+  @ApiResponse({ status: 404, description: 'Reply not found' })
+  async deleteReply(
+    @Param('replyId') replyId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (!req.user || !req.user.userId) {
+      throw new BadRequestException('User information is missing');
+    }
+
+    return this.talentService.deleteReply(replyId, req.user.userId);
+  }
+
+  @Patch('replies/:replyId')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a reply' })
+  @ApiParam({ name: 'replyId', description: 'Reply ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        comment: { type: 'string' },
+      },
+      required: ['comment'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Reply updated successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Not reply owner' })
+  @ApiResponse({ status: 404, description: 'Reply not found' })
+  async updateReply(
+    @Param('replyId') replyId: string,
+    @Body('comment') comment: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    try {
+      if (!comment || comment.trim().length === 0) {
+        throw new BadRequestException('Comment is required');
+      }
+
+      if (!req.user || !req.user.userId) {
+        throw new BadRequestException('User information is missing');
+      }
+
+      return await this.talentService.updateReply(
+        replyId,
+        req.user.userId,
+        comment,
+      );
+    } catch (error) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to update reply');
+    }
   }
 }

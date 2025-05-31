@@ -78,7 +78,7 @@ export class TalentService {
     private readonly prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailService: MailService, // Inject MailService
-  ) { }
+  ) {}
   /**
    * Helper method to update talent profile data from DTO
    * @param updateTalentDto DTO with talent update data
@@ -906,7 +906,6 @@ export class TalentService {
         include: {
           media: true,
           reviews: {
-            take: 2, // Initially load just a few reviews
             orderBy: {
               createdAt: 'desc',
             },
@@ -1163,7 +1162,7 @@ export class TalentService {
       }),
     );
 
-    // Get reviews with pagination
+    // Get reviews with pagination and include replies with user information
     const reviews = await this.prisma.safeQuery(() =>
       this.prisma.review.findMany({
         where: { talentReviewId: talentId },
@@ -1177,30 +1176,32 @@ export class TalentService {
               profilePicture: true,
             },
           },
+          replies: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  profilePicture: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
         },
       }),
     );
-
-    // Format reviews to match expected structure
-    const formattedReviews = reviews.map((review) => ({
-      reviewId: review.reviewId,
-      rating: review.rating,
-      comment: review.comment,
-      createdAt: review.createdAt,
-      user: {
-        name: review.user || null,
-        profilePicture: review.user?.profilePicture || null,
-      },
-    }));
 
     // Calculate if there are more reviews
     const hasMore = totalReviews > page * limit;
 
     return {
-      reviews: formattedReviews,
+      reviews,
       total: totalReviews,
       averageRating: talent.rating,
       hasMore,
+      nextPage: page + 1,
     };
   }
 
@@ -1245,13 +1246,27 @@ export class TalentService {
             comment,
             createdAt: new Date(),
           },
+          include: {
+            user: {
+              select: {
+                name: true,
+                profilePicture: true,
+              },
+            },
+          },
         }),
       );
 
       // Update talent's average rating
-      await this.updateTalentRating(talentId);
+      const newAverageRating = await this.updateTalentRating(talentId);
 
-      return updatedReview;
+      return {
+        review: {
+          ...updatedReview,
+          user: updatedReview.user,
+        },
+        newAverageRating,
+      };
     }
 
     // Otherwise, create a new review
@@ -1263,38 +1278,102 @@ export class TalentService {
           talentReviewId: talentId,
           userRevieweId: userId,
         },
+        include: {
+          user: {
+            select: {
+              name: true,
+              profilePicture: true,
+            },
+          },
+        },
       }),
     );
 
     // Update talent's average rating
-    await this.updateTalentRating(talentId);
+    const newAverageRating = await this.updateTalentRating(talentId);
 
-    return newReview;
+    return {
+      review: {
+        ...newReview,
+        user: newReview.user,
+      },
+      newAverageRating,
+    };
+  }
+
+  async addReplyToReview(reviewId: string, userId: string, comment: string) {
+    // Find the review and check if it exists
+    const review = await this.prisma.safeQuery(() =>
+      this.prisma.review.findUnique({
+        where: { reviewId },
+        include: {
+          talent: {
+            select: {
+              talentId: true,
+            },
+          },
+        },
+      }),
+    );
+
+    if (!review) {
+      throw new NotFoundException(`Review with ID ${reviewId} not found`);
+    }
+
+    // Check if the user is the talent owner
+    if (review.talent.talentId !== userId) {
+      throw new BadRequestException('Only the talent can reply to reviews');
+    }
+
+    // Create a new reply with user information
+    const newReply = await this.prisma.safeQuery(() =>
+      this.prisma.reply.create({
+        data: {
+          comment,
+          reviewReplyId: reviewId,
+          userReplyId: userId, // Add the user ID to create the relation
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+              profilePicture: true,
+            },
+          },
+        },
+      }),
+    );
+
+    return newReply;
   }
 
   /**
    * Update a talent's average rating
    */
-  private async updateTalentRating(talentId: string) {
-    // Get all reviews for this talent
-    const reviews = await this.prisma.safeQuery(() =>
-      this.prisma.review.findMany({
+  private async updateTalentRating(talentId: string): Promise<number> {
+    // Calculate new average rating
+    const result = await this.prisma.safeQuery(() =>
+      this.prisma.review.aggregate({
         where: { talentReviewId: talentId },
-        select: { rating: true },
+        _avg: {
+          rating: true,
+        },
       }),
     );
 
-    // Calculate average rating
-    const totalRating = reviews.reduce((acc, review) => acc + review.rating, 0);
-    const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+    const newRating = result._avg.rating || 0;
 
-    // Update talent with new average rating
+    // Update talent's rating
     await this.prisma.safeQuery(() =>
       this.prisma.talent.update({
         where: { talentId },
-        data: { rating: averageRating },
+        data: {
+          rating: newRating,
+        },
       }),
     );
+
+    return newRating;
   }
 
   /**
@@ -1470,7 +1549,7 @@ export class TalentService {
           user.email,
           user.name,
           rejectionReason ||
-          'Your application did not meet our current requirements.',
+            'Your application did not meet our current requirements.',
         );
       }
     }
@@ -1715,5 +1794,113 @@ export class TalentService {
         where: { id },
       }),
     );
+  }
+
+  async deleteReview(reviewId: string, userId: string) {
+    // Check if review exists and belongs to the user
+    const review = await this.prisma.safeQuery(() =>
+      this.prisma.review.findUnique({
+        where: { reviewId },
+        include: {
+          talent: true,
+          replies: true,
+        },
+      }),
+    );
+
+    if (!review) {
+      throw new NotFoundException('Review not found');
+    }
+
+    if (review.userRevieweId !== userId) {
+      throw new ForbiddenException('You can only delete your own reviews');
+    }
+
+    // Delete the review and update talent rating
+    await this.prisma.$transaction(async (tx) => {
+      // First delete all associated replies
+      if (review.replies.length > 0) {
+        await tx.reply.deleteMany({
+          where: { reviewReplyId: reviewId },
+        });
+      }
+
+      // Then delete the review
+      await tx.review.delete({
+        where: { reviewId },
+      });
+
+      // Recalculate average rating
+      const reviews = await tx.review.findMany({
+        where: { talentReviewId: review.talentReviewId },
+        select: { rating: true },
+      });
+
+      const newRating =
+        reviews.length > 0
+          ? reviews.reduce((acc, curr) => acc + curr.rating, 0) / reviews.length
+          : 0;
+
+      // Update talent rating
+      await tx.talent.update({
+        where: { talentId: review.talentReviewId },
+        data: { rating: newRating },
+      });
+    });
+
+    return { message: 'Review deleted successfully' };
+  }
+
+  async deleteReply(replyId: string, userId: string) {
+    // Check if reply exists and belongs to the user
+    const reply = await this.prisma.safeQuery(() =>
+      this.prisma.reply.findUnique({
+        where: { replyId },
+      }),
+    );
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.userReplyId !== userId) {
+      throw new ForbiddenException('You can only delete your own replies');
+    }
+
+    // Delete the reply
+    await this.prisma.safeQuery(() =>
+      this.prisma.reply.delete({
+        where: { replyId },
+      }),
+    );
+
+    return { message: 'Reply deleted successfully' };
+  }
+
+  async updateReply(replyId: string, userId: string, comment: string) {
+    // Check if reply exists and belongs to the user
+    const reply = await this.prisma.safeQuery(() =>
+      this.prisma.reply.findUnique({
+        where: { replyId },
+      }),
+    );
+
+    if (!reply) {
+      throw new NotFoundException('Reply not found');
+    }
+
+    if (reply.userReplyId !== userId) {
+      throw new ForbiddenException('You can only edit your own replies');
+    }
+
+    // Update the reply
+    await this.prisma.safeQuery(() =>
+      this.prisma.reply.update({
+        where: { replyId },
+        data: { comment },
+      }),
+    );
+
+    return { message: 'Reply updated successfully' };
   }
 }

@@ -228,7 +228,7 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
                     </span>
                   )}
                 </div>
-                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                <p className="whitespace-pre-wrap break-all">{msg.content}</p>
                 <div className="flex items-center justify-end space-x-2 text-xs mt-1 opacity-70">
                   <span>
                     {format(new Date(msg.createdAt), "MMM d, yyyy 'at' h:mm a")}
@@ -259,7 +259,7 @@ export default function ChatRoom({ conversationId }: ChatRoomProps) {
                 }
               }}
               placeholder="Type a message..."
-              className="min-h-[100px] resize-none"
+              className="min-h-[100px] resize-none break-all"
               rows={4}
             />
             <div className="flex justify-end">
